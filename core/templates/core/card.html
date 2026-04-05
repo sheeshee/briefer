@@ -1,0 +1,8 @@
+<div class="card" data-item-id="{{ item.id }}">
+    <span class="source-badge">{{ item.source }}</span>
+    <div class="card-title">{{ item.title }}</div>
+    {% if item.url %}
+        <a class="card-url" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url|truncatechars:60 }}</a>
+    {% endif %}
+    <div class="swipe-hint">&larr; seen &nbsp;&bull;&nbsp; action &rarr;</div>
+</div>
