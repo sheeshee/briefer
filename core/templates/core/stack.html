@@ -1,0 +1,109 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+{% if items %}
+<div class="stack-container" id="stack">
+    {% for item in items %}
+        {% include "core/card.html" with item=item %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state" id="empty-state">You're all caught up</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const SWIPE_THRESHOLD = 80;
+    const stack = document.getElementById("stack");
+    if (!stack) return;
+
+    const indicatorLeft = document.getElementById("indicator-left");
+    const indicatorRight = document.getElementById("indicator-right");
+
+    let activeCard = null;
+    let startX = 0;
+    let currentX = 0;
+
+    function getTopCard() {
+        return stack.querySelector(".card");
+    }
+
+    function onPointerDown(e) {
+        const card = e.target.closest(".card");
+        if (!card || card !== getTopCard()) return;
+        activeCard = card;
+        startX = e.clientX;
+        currentX = 0;
+        activeCard.setPointerCapture(e.pointerId);
+        activeCard.style.transition = "none";
+    }
+
+    function onPointerMove(e) {
+        if (!activeCard) return;
+        currentX = e.clientX - startX;
+        activeCard.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
+
+        indicatorLeft.style.opacity = currentX < -30 ? "1" : "0";
+        indicatorRight.style.opacity = currentX > 30 ? "1" : "0";
+    }
+
+    function onPointerUp(e) {
+        if (!activeCard) return;
+
+        indicatorLeft.style.opacity = "0";
+        indicatorRight.style.opacity = "0";
+
+        if (Math.abs(currentX) > SWIPE_THRESHOLD) {
+            const action = currentX < 0 ? "seen" : "actioned";
+            const itemId = activeCard.dataset.itemId;
+            const direction = currentX < 0 ? -1 : 1;
+
+            activeCard.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+            activeCard.style.transform = `translateX(${direction * 500}px) rotate(${direction * 30}deg)`;
+            activeCard.style.opacity = "0";
+
+            const cardToRemove = activeCard;
+            activeCard = null;
+
+            sendAction(itemId, action).then(() => {
+                cardToRemove.remove();
+                if (!getTopCard()) {
+                    stack.outerHTML = '<div class="empty-state" id="empty-state">You\'re all caught up</div>';
+                }
+            });
+        } else {
+            activeCard.style.transition = "transform 0.3s ease";
+            activeCard.style.transform = "";
+            activeCard = null;
+        }
+
+        currentX = 0;
+    }
+
+    function sendAction(itemId, action) {
+        return fetch(`/items/${itemId}/action/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({ action: action }),
+        });
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return "";
+    }
+
+    stack.addEventListener("pointerdown", onPointerDown);
+    stack.addEventListener("pointermove", onPointerMove);
+    stack.addEventListener("pointerup", onPointerUp);
+    stack.addEventListener("pointercancel", onPointerUp);
+})();
+</script>
+{% endblock %}
