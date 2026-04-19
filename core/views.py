@@ -20,6 +20,12 @@ def stack(request):
 
 
 @require_POST
+def reset(request):
+    Item.objects.exclude(state=Item.State.PENDING).update(state=Item.State.PENDING, actioned_at=None)
+    return redirect("stack")
+
+
+@require_POST
 def fetch(request):
     call_command("fetch_resources")
     return redirect("stack")

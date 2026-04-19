@@ -49,6 +49,25 @@ class TestStackView:
 
 
 @pytest.mark.django_db
+class TestResetView:
+    def test_post_resets_items_to_pending(self, client, db):
+        Item.objects.create(source="t", external_id="r1", title="A", state=Item.State.SEEN)
+        Item.objects.create(source="t", external_id="r2", title="B", state=Item.State.ACTIONED)
+        Item.objects.create(source="t", external_id="r3", title="C", state=Item.State.DISMISSED)
+        client.post("/reset/")
+        assert Item.objects.filter(state=Item.State.PENDING).count() == 3
+
+    def test_post_redirects_to_stack(self, client):
+        response = client.post("/reset/")
+        assert response.status_code == 302
+        assert response["Location"] == "/"
+
+    def test_get_not_allowed(self, client):
+        response = client.get("/reset/")
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
 class TestFetchView:
     def test_post_redirects_to_stack(self, client):
         response = client.post("/fetch/")

@@ -9,6 +9,10 @@
         {% csrf_token %}
         <button class="fetch-btn" type="submit">fetch</button>
     </form>
+    <form method="post" action="{% url 'reset' %}">
+        {% csrf_token %}
+        <button class="fetch-btn" type="submit">reset</button>
+    </form>
 </div>
 {% endblock %}
 
