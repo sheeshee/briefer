@@ -49,6 +49,18 @@ class TestStackView:
 
 
 @pytest.mark.django_db
+class TestFetchView:
+    def test_post_redirects_to_stack(self, client):
+        response = client.post("/fetch/")
+        assert response.status_code == 302
+        assert response["Location"] == "/"
+
+    def test_get_not_allowed(self, client):
+        response = client.get("/fetch/")
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
 class TestItemActionView:
     def test_seen_sets_state(self, client, pending_item):
         response = client.post(

@@ -96,10 +96,28 @@
         .counters {
             display: flex;
             gap: 1.5rem;
+            align-items: center;
             margin-bottom: 1.5rem;
             font-size: 0.85rem;
             color: #888;
+            width: 100%;
+            max-width: 400px;
         }
+
+        .counters .spacer { flex: 1; }
+
+        .fetch-btn {
+            background: none;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            color: #555;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0.3em 0.7em;
+            letter-spacing: 0.03em;
+        }
+
+        .fetch-btn:hover { border-color: #53a8b6; color: #53a8b6; }
 
         .counter span {
             font-weight: 600;

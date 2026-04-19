@@ -1,7 +1,8 @@
 import json
 
+from django.core.management import call_command
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
@@ -16,6 +17,12 @@ def stack(request):
         "pending_count": items.count(),
         "actioned_count": Item.objects.filter(state=Item.State.ACTIONED).count(),
     })
+
+
+@require_POST
+def fetch(request):
+    call_command("fetch_resources")
+    return redirect("stack")
 
 
 @require_POST

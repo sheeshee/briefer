@@ -4,6 +4,11 @@
 <div class="counters">
     <div class="counter"><span id="pending-count">{{ pending_count }}</span> remaining</div>
     <div class="counter"><span id="actioned-count">{{ actioned_count }}</span> actioned</div>
+    <div class="spacer"></div>
+    <form method="post" action="{% url 'fetch' %}">
+        {% csrf_token %}
+        <button class="fetch-btn" type="submit">fetch</button>
+    </form>
 </div>
 {% endblock %}
 
