@@ -93,6 +93,19 @@
         .card:nth-child(3) { z-index: 1; transform: scale(0.92) translateY(16px); opacity: 0.4; }
         .card:nth-child(n+4) { display: none; }
 
+        .counters {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .counter span {
+            font-weight: 600;
+            color: #eee;
+        }
+
         .empty-state {
             text-align: center;
             color: #666;
@@ -127,6 +140,7 @@
 </head>
 <body>
     <h1>BRIEFER</h1>
+    {% block counters %}{% endblock %}
     {% block content %}{% endblock %}
 
     <div class="swipe-indicator left" id="indicator-left">SEEN</div>

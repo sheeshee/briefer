@@ -11,7 +11,11 @@ from core.models import Item
 @require_GET
 def stack(request):
     items = Item.objects.filter(state=Item.State.PENDING)
-    return render(request, "core/stack.html", {"items": items})
+    return render(request, "core/stack.html", {
+        "items": items,
+        "pending_count": items.count(),
+        "actioned_count": Item.objects.filter(state=Item.State.ACTIONED).count(),
+    })
 
 
 @require_POST

@@ -31,6 +31,22 @@ class TestStackView:
         response = client.get("/")
         assert pending_item.title.encode() in response.content
 
+    def test_pending_count_in_context(self, client, pending_item):
+        response = client.get("/")
+        assert response.context["pending_count"] == 1
+
+    def test_actioned_count_in_context(self, client, db):
+        Item.objects.create(
+            source="test", external_id="act-1", title="Actioned", state=Item.State.ACTIONED
+        )
+        response = client.get("/")
+        assert response.context["actioned_count"] == 1
+
+    def test_counts_rendered_in_html(self, client, pending_item):
+        response = client.get("/")
+        assert b'id="pending-count"' in response.content
+        assert b'id="actioned-count"' in response.content
+
 
 @pytest.mark.django_db
 class TestItemActionView:

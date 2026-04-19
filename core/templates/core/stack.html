@@ -1,5 +1,12 @@
 {% extends "core/base.html" %}
 
+{% block counters %}
+<div class="counters">
+    <div class="counter"><span id="pending-count">{{ pending_count }}</span> remaining</div>
+    <div class="counter"><span id="actioned-count">{{ actioned_count }}</span> actioned</div>
+</div>
+{% endblock %}
+
 {% block content %}
 {% if items %}
 <div class="stack-container" id="stack">
@@ -69,6 +76,7 @@
 
             sendAction(itemId, action).then(() => {
                 cardToRemove.remove();
+                updateCounters(action);
                 if (!getTopCard()) {
                     stack.outerHTML = '<div class="empty-state" id="empty-state">You\'re all caught up</div>';
                 }
@@ -80,6 +88,13 @@
         }
 
         currentX = 0;
+    }
+
+    function updateCounters(action) {
+        const pendingEl = document.getElementById("pending-count");
+        const actionedEl = document.getElementById("actioned-count");
+        if (pendingEl) pendingEl.textContent = Math.max(0, parseInt(pendingEl.textContent) - 1);
+        if (actionedEl && action === "actioned") actionedEl.textContent = parseInt(actionedEl.textContent) + 1;
     }
 
     function sendAction(itemId, action) {
