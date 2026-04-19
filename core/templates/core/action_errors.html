@@ -56,20 +56,14 @@
 
     tr:last-child td { border-bottom: none; }
 
-    td.title { color: #eee; max-width: 420px; }
+    tr:hover td { background: #111827; cursor: pointer; }
 
-    td.title a {
-        color: inherit;
-        text-decoration: none;
-    }
+    td.item-title { color: #eee; max-width: 340px; }
+    td.action-id { white-space: nowrap; }
+    td.error-msg { color: #e94560; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td.date { white-space: nowrap; color: #666; font-size: 0.8rem; }
 
-    td.title a:hover { text-decoration: underline; color: #53a8b6; }
-
-    td.source {
-        white-space: nowrap;
-    }
-
-    .source-badge {
+    .action-badge {
         display: inline-block;
         font-size: 0.65rem;
         font-weight: 600;
@@ -80,29 +74,6 @@
         padding: 0.15em 0.5em;
         border-radius: 4px;
     }
-
-    td.date {
-        white-space: nowrap;
-        color: #666;
-        font-size: 0.8rem;
-    }
-
-    td.state { white-space: nowrap; }
-
-    .state-badge {
-        display: inline-block;
-        font-size: 0.65rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0.2em 0.55em;
-        border-radius: 4px;
-    }
-
-    .state-pending  { color: #888; background: rgba(136,136,136,0.12); }
-    .state-seen     { color: #7a9cbf; background: rgba(122,156,191,0.12); }
-    .state-actioned { color: #53a8b6; background: rgba(83,168,182,0.15); }
-    .state-dismissed{ color: #e94560; background: rgba(233,69,96,0.12); }
 
     .pagination {
         display: flex;
@@ -133,32 +104,28 @@
 
 <div class="history-wrap">
     <div class="history-header">
-        <a class="back-link" href="{% url 'stack' %}">&larr; back</a>
-        <h2>History</h2>
-        <span style="color:#555;font-size:0.8rem;">{{ page.paginator.count }} item{{ page.paginator.count|pluralize }}</span>
-        <div style="flex:1"></div>
-        <a class="back-link" href="{% url 'action-errors' %}">errors</a>
+        <a class="back-link" href="{% url 'history' %}">&larr; history</a>
+        <h2>Action Errors</h2>
+        <span style="color:#555;font-size:0.8rem;">{{ page.paginator.count }} error{{ page.paginator.count|pluralize }}</span>
     </div>
 
     {% if page.object_list %}
     <table>
         <thead>
             <tr>
-                <th>Title</th>
-                <th>Source</th>
-                <th>Fetched</th>
-                <th>State</th>
+                <th>Item</th>
+                <th>Action</th>
+                <th>Error</th>
+                <th>When</th>
             </tr>
         </thead>
         <tbody>
-        {% for item in page.object_list %}
-            <tr>
-                <td class="title">
-                    {% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
-                </td>
-                <td class="source"><span class="source-badge">{{ item.source }}</span></td>
-                <td class="date">{{ item.fetched_at|date:"Y-m-d H:i" }}</td>
-                <td class="state"><span class="state-badge state-{{ item.state }}">{{ item.state }}</span></td>
+        {% for err in page.object_list %}
+            <tr onclick="window.location='{% url 'action-error-detail' err.pk %}'">
+                <td class="item-title">{{ err.item.title }}</td>
+                <td class="action-id"><span class="action-badge">{{ err.action_id }}</span></td>
+                <td class="error-msg">{{ err.error }}</td>
+                <td class="date">{{ err.occurred_at|date:"Y-m-d H:i" }}</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -174,7 +141,7 @@
         {% endif %}
     </div>
     {% else %}
-    <p style="color:#555;margin-top:2rem;">No items yet.</p>
+    <p style="color:#555;margin-top:2rem;">No errors recorded.</p>
     {% endif %}
 </div>
 {% endblock %}

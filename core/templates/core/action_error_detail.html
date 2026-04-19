@@ -1,0 +1,124 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<style>
+    .detail-wrap {
+        width: 100%;
+        max-width: 700px;
+    }
+
+    .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-header h2 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #aaa;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .back-link {
+        font-size: 0.8rem;
+        color: #53a8b6;
+        text-decoration: none;
+    }
+
+    .back-link:hover { text-decoration: underline; }
+
+    .detail-card {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 10px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .detail-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .detail-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #555;
+    }
+
+    .detail-value {
+        font-size: 0.9rem;
+        color: #ccc;
+        word-break: break-word;
+    }
+
+    .detail-value.error {
+        color: #e94560;
+        font-family: monospace;
+        font-size: 0.85rem;
+        background: rgba(233,69,96,0.08);
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+    }
+
+    .detail-value a {
+        color: #53a8b6;
+        text-decoration: none;
+        word-break: break-all;
+    }
+
+    .detail-value a:hover { text-decoration: underline; }
+
+    .action-badge {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #e94560;
+        background: rgba(233, 69, 96, 0.12);
+        padding: 0.2em 0.55em;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="detail-wrap">
+    <div class="detail-header">
+        <a class="back-link" href="{% url 'action-errors' %}">&larr; errors</a>
+        <h2>Error Detail</h2>
+    </div>
+
+    <div class="detail-card">
+        <div class="detail-row">
+            <span class="detail-label">Item</span>
+            <span class="detail-value">
+                {% if error.item.url %}
+                    <a href="{{ error.item.url }}" target="_blank" rel="noopener">{{ error.item.title }}</a>
+                {% else %}
+                    {{ error.item.title }}
+                {% endif %}
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Action</span>
+            <span class="detail-value"><span class="action-badge">{{ error.action_id }}</span></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Error</span>
+            <div class="detail-value error">{{ error.error }}</div>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Occurred at</span>
+            <span class="detail-value">{{ error.occurred_at|date:"Y-m-d H:i:s" }} UTC</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
