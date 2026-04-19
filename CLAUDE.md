@@ -50,6 +50,10 @@ Use red-green testing for all feature additions, changes, and bug fixes:
 2. Verify it fails (red)
 3. Implement the change to make it pass (green)
 
+## Committing
+
+After completing any task that modifies files, stage and commit the changes using the `/commit` skill. Group changes into logical commits — one concern per commit.
+
 ## Data Model
 
 `core.Item` has states: `pending` → `seen` / `actioned` / `dismissed`. Items are ordered by `-fetched_at`. Optional `expires_at` for time-limited items.
