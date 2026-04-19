@@ -83,6 +83,18 @@ class TestFrontend:
         page.wait_for_timeout(500)
         expect(page.locator(".card").first).not_to_contain_text(title)
 
+    def test_first_card_intercepts_pointer_events(self, page, live_url, create_items):
+        page.goto(live_url)
+        first_card = page.locator(".card").first
+        box = first_card.bounding_box()
+        cx = box["x"] + box["width"] / 2
+        cy = box["y"] + box["height"] / 2
+        is_first_card_or_child = page.evaluate(
+            f"document.querySelector('.stack-container .card:first-child')"
+            f".contains(document.elementFromPoint({cx}, {cy}))"
+        )
+        assert is_first_card_or_child, "Top card is covered by a later card; add z-index ordering"
+
     def test_empty_state_when_no_items(self, page, live_url, db):
         page.goto(live_url)
         expect(page.locator("#empty-state")).to_be_visible()
