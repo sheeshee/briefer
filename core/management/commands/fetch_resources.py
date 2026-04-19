@@ -5,11 +5,13 @@ from django.core.management.base import BaseCommand
 
 from resources.fake import FakeResource
 from resources.hackernews import HackerNewsResource
+from resources.news import NewsAPIResource
 
 logger = logging.getLogger(__name__)
 
 RESOURCES = [
     HackerNewsResource(),
+    NewsAPIResource(),
     FakeResource(),
 ]
 
