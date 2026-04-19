@@ -71,6 +71,16 @@ class TestItemActionView:
         assert pending_item.state == Item.State.ACTIONED
         assert pending_item.actioned_at is not None
 
+    def test_dismissed_sets_state(self, client, pending_item):
+        response = client.post(
+            f"/items/{pending_item.id}/action/",
+            data=json.dumps({"action": "dismissed"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 204
+        pending_item.refresh_from_db()
+        assert pending_item.state == Item.State.DISMISSED
+
     def test_invalid_action_returns_400(self, client, pending_item):
         response = client.post(
             f"/items/{pending_item.id}/action/",

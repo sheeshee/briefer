@@ -23,6 +23,20 @@
 <script>
 (function () {
     const SWIPE_THRESHOLD = 80;
+    const LONG_PRESS_MS = 500;
+    const MOVE_CANCEL_THRESHOLD = 12;
+    const RADIAL_RADIUS = 85;
+
+    // angle: degrees from 3 o'clock, clockwise
+    const RADIAL_ITEMS = [
+        { angle: 180, label: "DISMISS", action: "dismissed", color: "#e94560", bg: "rgba(233,69,96,0.15)" },
+        { angle: 0,   label: "ACTION",  action: "actioned",  color: "#53a8b6", bg: "rgba(83,168,182,0.15)" },
+        { angle: 300, label: null, action: null },
+        { angle: 60,  label: null, action: null },
+        { angle: 240, label: null, action: null },
+        { angle: 120, label: null, action: null },
+    ];
+
     const stack = document.getElementById("stack");
     if (!stack) return;
 
@@ -31,10 +45,131 @@
 
     let activeCard = null;
     let startX = 0;
+    let startY = 0;
     let currentX = 0;
+
+    let longPressTimer = null;
+    let longPressCard = null;
+    let radialActive = false;
+    let radialMenu = null;
+    let radialCenter = { x: 0, y: 0 };
+    let radialHighlighted = null;
 
     function getTopCard() {
         return stack.querySelector(".card");
+    }
+
+    function angleDiff(a, b) {
+        let d = a - b;
+        while (d > 180) d -= 360;
+        while (d < -180) d += 360;
+        return Math.abs(d);
+    }
+
+    function showRadialMenu(card) {
+        const rect = card.getBoundingClientRect();
+        radialCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+
+        radialMenu = document.createElement("div");
+        radialMenu.id = "radial-menu";
+        Object.assign(radialMenu.style, {
+            position: "fixed", inset: "0", zIndex: "1000", pointerEvents: "none",
+        });
+
+        const backdrop = document.createElement("div");
+        Object.assign(backdrop.style, {
+            position: "absolute",
+            width: "220px", height: "220px",
+            borderRadius: "50%",
+            background: "rgba(10,10,30,0.92)",
+            border: "1px solid #0f3460",
+            left: `${radialCenter.x - 110}px`,
+            top: `${radialCenter.y - 110}px`,
+        });
+        radialMenu.appendChild(backdrop);
+
+        const dot = document.createElement("div");
+        Object.assign(dot.style, {
+            position: "absolute",
+            width: "10px", height: "10px",
+            borderRadius: "50%",
+            background: "#444",
+            left: `${radialCenter.x - 5}px`,
+            top: `${radialCenter.y - 5}px`,
+        });
+        radialMenu.appendChild(dot);
+
+        RADIAL_ITEMS.forEach((item, i) => {
+            const rad = item.angle * Math.PI / 180;
+            const x = radialCenter.x + Math.cos(rad) * RADIAL_RADIUS;
+            const y = radialCenter.y + Math.sin(rad) * RADIAL_RADIUS;
+            const el = document.createElement("div");
+            el.dataset.radialIndex = i;
+            Object.assign(el.style, {
+                position: "absolute",
+                width: "52px", height: "52px",
+                borderRadius: "50%",
+                border: `2px solid ${item.action ? item.color : "#2a2a4a"}`,
+                background: item.action ? item.bg : "rgba(20,20,40,0.8)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "0.55rem", fontWeight: "700",
+                textTransform: "uppercase", letterSpacing: "0.05em",
+                color: item.action ? item.color : "#333",
+                left: `${x - 26}px`, top: `${y - 26}px`,
+                transition: "transform 0.1s, background 0.1s",
+            });
+            el.textContent = item.label || "";
+            radialMenu.appendChild(el);
+        });
+
+        document.body.appendChild(radialMenu);
+        radialActive = true;
+    }
+
+    function hideRadialMenu() {
+        if (radialMenu) { radialMenu.remove(); radialMenu = null; }
+        radialActive = false;
+        radialHighlighted = null;
+    }
+
+    function updateRadialHighlight(x, y) {
+        if (!radialMenu) return;
+        const dx = x - radialCenter.x;
+        const dy = y - radialCenter.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const itemEls = Array.from(radialMenu.children).slice(2);
+
+        if (dist < 25) {
+            radialHighlighted = null;
+            itemEls.forEach(el => {
+                const item = RADIAL_ITEMS[parseInt(el.dataset.radialIndex)];
+                el.style.transform = "";
+                el.style.background = item.action ? item.bg : "rgba(20,20,40,0.8)";
+            });
+            return;
+        }
+
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        let minDiff = Infinity, closestIdx = -1;
+        RADIAL_ITEMS.forEach((item, i) => {
+            const diff = angleDiff(angle, item.angle);
+            if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+        });
+
+        const closest = RADIAL_ITEMS[closestIdx];
+        radialHighlighted = closest.action ? closest : null;
+
+        itemEls.forEach(el => {
+            const i = parseInt(el.dataset.radialIndex);
+            const item = RADIAL_ITEMS[i];
+            if (i === closestIdx && item.action) {
+                el.style.transform = "scale(1.25)";
+                el.style.background = item.color + "40";
+            } else {
+                el.style.transform = "";
+                el.style.background = item.action ? item.bg : "rgba(20,20,40,0.8)";
+            }
+        });
     }
 
     function onPointerDown(e) {
@@ -42,25 +177,66 @@
         if (!card || card !== getTopCard()) return;
         activeCard = card;
         startX = e.clientX;
+        startY = e.clientY;
         currentX = 0;
         activeCard.setPointerCapture(e.pointerId);
         activeCard.style.transition = "none";
+
+        longPressCard = card;
+        longPressTimer = setTimeout(() => {
+            longPressTimer = null;
+            if (activeCard) {
+                activeCard.style.transition = "";
+                activeCard.style.transform = "";
+                activeCard = null;
+            }
+            showRadialMenu(longPressCard);
+        }, LONG_PRESS_MS);
     }
 
     function onPointerMove(e) {
+        if (radialActive) {
+            updateRadialHighlight(e.clientX, e.clientY);
+            return;
+        }
         if (!activeCard) return;
         currentX = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (longPressTimer && (Math.abs(currentX) > MOVE_CANCEL_THRESHOLD || Math.abs(dy) > MOVE_CANCEL_THRESHOLD)) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
         activeCard.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
-
         indicatorLeft.style.opacity = currentX < -30 ? "1" : "0";
         indicatorRight.style.opacity = currentX > 30 ? "1" : "0";
     }
 
     function onPointerUp(e) {
-        if (!activeCard) return;
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 
         indicatorLeft.style.opacity = "0";
         indicatorRight.style.opacity = "0";
+
+        if (radialActive) {
+            const item = radialHighlighted;
+            const card = longPressCard;
+            hideRadialMenu();
+            longPressCard = null;
+            if (item && card) {
+                card.style.transition = "opacity 0.2s ease";
+                card.style.opacity = "0";
+                sendAction(card.dataset.itemId, item.action).then(() => {
+                    card.remove();
+                    updateCounters(item.action);
+                    if (!getTopCard()) {
+                        stack.outerHTML = '<div class="empty-state" id="empty-state">You\'re all caught up</div>';
+                    }
+                });
+            }
+            return;
+        }
+
+        if (!activeCard) return;
 
         if (Math.abs(currentX) > SWIPE_THRESHOLD) {
             const action = currentX < 0 ? "seen" : "actioned";
@@ -73,6 +249,7 @@
 
             const cardToRemove = activeCard;
             activeCard = null;
+            longPressCard = null;
 
             sendAction(itemId, action).then(() => {
                 cardToRemove.remove();
@@ -85,6 +262,7 @@
             activeCard.style.transition = "transform 0.3s ease";
             activeCard.style.transform = "";
             activeCard = null;
+            longPressCard = null;
         }
 
         currentX = 0;
@@ -100,11 +278,8 @@
     function sendAction(itemId, action) {
         return fetch(`/items/${itemId}/action/`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCookie("csrftoken"),
-            },
-            body: JSON.stringify({ action: action }),
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+            body: JSON.stringify({ action }),
         });
     }
 

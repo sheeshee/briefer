@@ -41,5 +41,9 @@ def item_action(request, item_id):
         item.actioned_at = timezone.now()
         item.save(update_fields=["state", "actioned_at"])
         return HttpResponse(status=204)
+    elif action == "dismissed":
+        item.state = Item.State.DISMISSED
+        item.save(update_fields=["state"])
+        return HttpResponse(status=204)
     else:
-        return JsonResponse({"error": "Invalid action. Use 'seen' or 'actioned'."}, status=400)
+        return JsonResponse({"error": "Invalid action. Use 'seen', 'actioned', or 'dismissed'."}, status=400)

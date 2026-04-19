@@ -99,3 +99,34 @@ class TestFrontend:
         page.goto(live_url)
         expect(page.locator("#empty-state")).to_be_visible()
         expect(page.locator("#empty-state")).to_contain_text("all caught up")
+
+    def test_radial_menu_appears_on_long_press(self, page, live_url, create_items):
+        page.goto(live_url)
+        card = page.locator(".card").first
+        box = card.bounding_box()
+        cx = box["x"] + box["width"] / 2
+        cy = box["y"] + box["height"] / 2
+
+        page.mouse.move(cx, cy)
+        page.mouse.down()
+        page.wait_for_timeout(600)
+
+        expect(page.locator("#radial-menu")).to_be_visible()
+        page.mouse.up()
+
+    def test_radial_dismiss_removes_card(self, page, live_url, create_items):
+        page.goto(live_url)
+        card = page.locator(".card").first
+        title = card.inner_text()
+        box = card.bounding_box()
+        cx = box["x"] + box["width"] / 2
+        cy = box["y"] + box["height"] / 2
+
+        page.mouse.move(cx, cy)
+        page.mouse.down()
+        page.wait_for_timeout(600)
+        page.mouse.move(cx - 100, cy)
+        page.mouse.up()
+
+        page.wait_for_timeout(500)
+        expect(page.locator(".card").first).not_to_contain_text(title)
