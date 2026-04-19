@@ -9,20 +9,26 @@ from resources.news import NewsAPIResource
 
 logger = logging.getLogger(__name__)
 
-RESOURCES = [
+BASE_RESOURCES = [
     HackerNewsResource(),
     NewsAPIResource(),
-    FakeResource(),
 ]
 
 
 class Command(BaseCommand):
     help = "Fetch items from all registered resources"
 
+    def add_arguments(self, parser):
+        parser.add_argument("--include-fake", action="store_true", default=False)
+
     def handle(self, *args, **options):
+        resources = list(BASE_RESOURCES)
+        if options["include_fake"]:
+            resources.append(FakeResource())
+
         has_error = False
 
-        for resource in RESOURCES:
+        for resource in resources:
             self.stdout.write(f"Fetching: {resource.source_id}")
             try:
                 resource.fetch()

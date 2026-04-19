@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 from django.test import Client
@@ -77,6 +78,16 @@ class TestFetchView:
     def test_get_not_allowed(self, client):
         response = client.get("/fetch/")
         assert response.status_code == 405
+
+    def test_without_include_fake_passes_false(self, client):
+        with patch("core.views.call_command") as mock_cmd:
+            client.post("/fetch/")
+            mock_cmd.assert_called_once_with("fetch_resources", include_fake=False)
+
+    def test_with_include_fake_passes_true(self, client):
+        with patch("core.views.call_command") as mock_cmd:
+            client.post("/fetch/", data={"include_fake": "on"})
+            mock_cmd.assert_called_once_with("fetch_resources", include_fake=True)
 
 
 @pytest.mark.django_db

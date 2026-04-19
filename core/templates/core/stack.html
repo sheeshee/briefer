@@ -7,6 +7,9 @@
     <div class="spacer"></div>
     <form method="post" action="{% url 'fetch' %}">
         {% csrf_token %}
+        <label class="toggle-label">
+            <input type="checkbox" name="include_fake"> fake
+        </label>
         <button class="fetch-btn" type="submit">fetch</button>
     </form>
     <form method="post" action="{% url 'reset' %}">

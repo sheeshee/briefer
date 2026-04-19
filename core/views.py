@@ -27,7 +27,8 @@ def reset(request):
 
 @require_POST
 def fetch(request):
-    call_command("fetch_resources")
+    include_fake = bool(request.POST.get("include_fake"))
+    call_command("fetch_resources", include_fake=include_fake)
     return redirect("stack")
 
 
