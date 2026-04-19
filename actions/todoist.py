@@ -22,7 +22,7 @@ class TodoistAction(BaseAction):
         content = f"[{item.title}]({item.url})" if item.url else item.title
         payload = json.dumps({"content": content}).encode()
         req = urllib.request.Request(
-            "https://api.todoist.com/rest/v2/tasks",
+            "https://api.todoist.com/api/v1/tasks",
             data=payload,
             headers={
                 "Authorization": f"Bearer {token}",
