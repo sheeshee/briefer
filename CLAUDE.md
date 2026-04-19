@@ -25,6 +25,9 @@ uv run manage.py makemigrations
 # Fetch items from all registered resources
 uv run manage.py fetch_resources
 
+# Delete all items from the database
+uv run manage.py delete_items
+
 # Run tests
 uv run pytest
 ```

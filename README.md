@@ -56,6 +56,12 @@ uv run manage.py fetch_resources --include-fake
 
 The UI fetch button also has a **fake** checkbox for the same purpose.
 
+## Deleting all items
+
+```bash
+uv run manage.py delete_items
+```
+
 ## Adding a resource
 
 Subclass `resources.base.BaseResource`, set `source_id`, and implement `fetch()`:
