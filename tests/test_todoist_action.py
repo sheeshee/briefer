@@ -45,6 +45,7 @@ class TestTodoistAction:
         assert req.get_header("Authorization") == "Bearer test-token"
         body = json.loads(req.data)
         assert "[My Test Item](https://example.com/article)" == body["content"]
+        assert body["labels"] == ["briefer"]
 
     def test_title_only_when_no_url(self, item_no_url, settings):
         settings.TODOIST_API_TOKEN = "test-token"
