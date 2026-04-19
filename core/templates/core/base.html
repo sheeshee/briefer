@@ -95,8 +95,8 @@
 
         .counters {
             display: flex;
-            gap: 1.5rem;
-            align-items: center;
+            flex-direction: column;
+            gap: 0.5rem;
             margin-bottom: 1.5rem;
             font-size: 0.85rem;
             color: #888;
@@ -104,7 +104,14 @@
             max-width: 400px;
         }
 
-        .counters .spacer { flex: 1; }
+        .counters-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            width: 100%;
+        }
+
+        .counters-row .spacer { flex: 1; }
 
         .fetch-btn {
             background: none;

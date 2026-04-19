@@ -2,21 +2,26 @@
 
 {% block counters %}
 <div class="counters">
-    <div class="counter"><span id="pending-count">{{ pending_count }}</span> remaining</div>
-    <div class="counter"><span id="actioned-count">{{ actioned_count }}</span> actioned</div>
-    <div class="spacer"></div>
-    <form method="post" action="{% url 'fetch' %}">
-        {% csrf_token %}
-        <label class="toggle-label">
-            <input type="checkbox" name="include_fake"> fake
-        </label>
-        <button class="fetch-btn" type="submit">fetch</button>
-    </form>
-    <form method="post" action="{% url 'reset' %}">
-        {% csrf_token %}
-        <button class="fetch-btn" type="submit">reset</button>
-    </form>
-    <a class="fetch-btn" href="{% url 'history' %}" style="text-decoration:none">history</a>
+    <div class="counters-row">
+        <div class="counter"><span id="pending-count">{{ pending_count }}</span> remaining</div>
+        <div class="counter"><span id="actioned-count">{{ actioned_count }}</span> actioned</div>
+        <div class="spacer"></div>
+        <a class="fetch-btn" href="{% url 'history' %}" style="text-decoration:none">history</a>
+    </div>
+    <div class="counters-row">
+        <div class="spacer"></div>
+        <form method="post" action="{% url 'fetch' %}">
+            {% csrf_token %}
+            <label class="toggle-label">
+                <input type="checkbox" name="include_fake"> fake
+            </label>
+            <button class="fetch-btn" type="submit">fetch</button>
+        </form>
+        <form method="post" action="{% url 'reset' %}">
+            {% csrf_token %}
+            <button class="fetch-btn" type="submit">reset</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
