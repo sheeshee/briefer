@@ -91,6 +91,38 @@ class TestFetchView:
 
 
 @pytest.mark.django_db
+class TestHistoryView:
+    def test_get_returns_200(self, client, db):
+        response = client.get("/history/")
+        assert response.status_code == 200
+
+    def test_renders_all_items(self, client, db):
+        Item.objects.create(source="s", external_id="h1", title="Pending Item")
+        Item.objects.create(source="s", external_id="h2", title="Seen Item", state=Item.State.SEEN)
+        Item.objects.create(source="s", external_id="h3", title="Actioned Item", state=Item.State.ACTIONED)
+        response = client.get("/history/")
+        assert b"Pending Item" in response.content
+        assert b"Seen Item" in response.content
+        assert b"Actioned Item" in response.content
+
+    def test_shows_state_badge(self, client, db):
+        Item.objects.create(source="s", external_id="h4", title="X", state=Item.State.ACTIONED)
+        response = client.get("/history/")
+        assert b"actioned" in response.content
+
+    def test_pagination_second_page(self, client, db):
+        for i in range(55):
+            Item.objects.create(source="s", external_id=f"p{i}", title=f"Item {i}")
+        response = client.get("/history/?page=2")
+        assert response.status_code == 200
+        assert b"Item" in response.content
+
+    def test_get_only(self, client, db):
+        response = client.post("/history/")
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
 class TestItemActionView:
     def test_seen_sets_state(self, client, pending_item):
         response = client.post(

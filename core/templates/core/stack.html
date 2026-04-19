@@ -16,6 +16,7 @@
         {% csrf_token %}
         <button class="fetch-btn" type="submit">reset</button>
     </form>
+    <a class="fetch-btn" href="{% url 'history' %}" style="text-decoration:none">history</a>
 </div>
 {% endblock %}
 

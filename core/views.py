@@ -1,6 +1,7 @@
 import json
 
 from django.core.management import call_command
+from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,6 +18,14 @@ def stack(request):
         "pending_count": items.count(),
         "actioned_count": Item.objects.filter(state=Item.State.ACTIONED).count(),
     })
+
+
+@require_GET
+def history(request):
+    items = Item.objects.order_by("-fetched_at")
+    paginator = Paginator(items, 50)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(request, "core/history.html", {"page": page})
 
 
 @require_POST
