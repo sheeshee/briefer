@@ -3,12 +3,14 @@ import sys
 
 from django.core.management.base import BaseCommand
 
+from resources.fake import FakeResource
 from resources.hackernews import HackerNewsResource
 
 logger = logging.getLogger(__name__)
 
 RESOURCES = [
     HackerNewsResource(),
+    FakeResource(),
 ]
 
 
