@@ -7,7 +7,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from core.models import Item
+from actions.todoist import TodoistAction
+from core.models import ActionError, Item
+
+_ACTIONED_ACTIONS = [TodoistAction()]
 
 
 @require_GET
@@ -63,6 +66,8 @@ def item_action(request, item_id):
         item.state = Item.State.ACTIONED
         item.actioned_at = timezone.now()
         item.save(update_fields=["state", "actioned_at"])
+        for act in _ACTIONED_ACTIONS:
+            act.execute(item)
         return HttpResponse(status=204)
     elif action == "dismissed":
         item.state = Item.State.DISMISSED
@@ -70,3 +75,17 @@ def item_action(request, item_id):
         return HttpResponse(status=204)
     else:
         return JsonResponse({"error": "Invalid action. Use 'seen', 'actioned', or 'dismissed'."}, status=400)
+
+
+@require_GET
+def action_errors(request):
+    errors = ActionError.objects.select_related("item").order_by("-occurred_at")
+    paginator = Paginator(errors, 50)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(request, "core/action_errors.html", {"page": page})
+
+
+@require_GET
+def action_error_detail(request, error_id):
+    error = get_object_or_404(ActionError, pk=error_id)
+    return render(request, "core/action_error_detail.html", {"error": error})

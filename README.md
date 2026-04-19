@@ -38,6 +38,9 @@ DJANGO_ALLOWED_HOSTS=localhost,yourdomain.com
 
 # Required for NewsAPI resource
 NEWS_API_KEY=your-newsapi-key
+
+# Required for Todoist action (swipe right creates a task)
+TODOIST_API_TOKEN=your-todoist-api-token
 ```
 
 ## Fetching items

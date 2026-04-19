@@ -29,3 +29,16 @@ class Item(models.Model):
 
     def __str__(self):
         return f"[{self.source}] {self.title}"
+
+
+class ActionError(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="action_errors")
+    action_id = models.CharField(max_length=50)
+    error = models.TextField()
+    occurred_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-occurred_at"]
+
+    def __str__(self):
+        return f"[{self.action_id}] {self.error[:60]}"

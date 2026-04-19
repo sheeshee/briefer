@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from django.test import Client
 
-from core.models import Item
+from core.models import ActionError, Item
 
 
 @pytest.fixture
@@ -120,6 +120,57 @@ class TestHistoryView:
     def test_get_only(self, client, db):
         response = client.post("/history/")
         assert response.status_code == 405
+
+
+@pytest.mark.django_db
+class TestActionErrorViews:
+    def _make_error(self, db):
+        item = Item.objects.create(source="s", external_id="ae1", title="Broken Item")
+        return ActionError.objects.create(item=item, action_id="todoist", error="HTTP 401")
+
+    def test_list_returns_200(self, client, db):
+        response = client.get("/errors/")
+        assert response.status_code == 200
+
+    def test_list_shows_errors(self, client, db):
+        err = self._make_error(db)
+        response = client.get("/errors/")
+        assert b"Broken Item" in response.content
+        assert b"todoist" in response.content
+
+    def test_detail_returns_200(self, client, db):
+        err = self._make_error(db)
+        response = client.get(f"/errors/{err.pk}/")
+        assert response.status_code == 200
+
+    def test_detail_shows_error_message(self, client, db):
+        err = self._make_error(db)
+        response = client.get(f"/errors/{err.pk}/")
+        assert b"HTTP 401" in response.content
+
+    def test_detail_404_for_missing(self, client, db):
+        response = client.get("/errors/99999/")
+        assert response.status_code == 404
+
+    def test_list_get_only(self, client, db):
+        assert client.post("/errors/").status_code == 405
+
+    def test_detail_get_only(self, client, db):
+        err = self._make_error(db)
+        assert client.post(f"/errors/{err.pk}/").status_code == 405
+
+
+@pytest.mark.django_db
+class TestActionedTriggersTodoist:
+    def test_actioned_calls_todoist_execute(self, client, db):
+        item = Item.objects.create(source="s", external_id="td1", title="Trigger Test")
+        with patch("core.views.TodoistAction.execute") as mock_exec:
+            client.post(
+                f"/items/{item.id}/action/",
+                data=json.dumps({"action": "actioned"}),
+                content_type="application/json",
+            )
+        mock_exec.assert_called_once_with(item)
 
 
 @pytest.mark.django_db
