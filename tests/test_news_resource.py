@@ -43,13 +43,13 @@ def _api_key(monkeypatch):
 @pytest.mark.django_db
 class TestNewsAPIResource:
     @patch("resources.news.requests.get")
-    def test_creates_items_with_correct_fields(self, mock_get):
+    def test_creates_items_with_correct_fields(self, mock_get, user):
         mock_get.return_value = _make_api_response(SAMPLE_ARTICLES)
 
-        NewsAPIResource().fetch()
+        NewsAPIResource().fetch(user)
 
-        assert Item.objects.count() == 2
-        item = Item.objects.get(url="https://example.com/news/1")
+        assert Item.objects.filter(user=user).count() == 2
+        item = Item.objects.get(user=user, url="https://example.com/news/1")
         assert item.title == "Breaking: Something happened"
         assert item.summary == "A short summary of the event."
         assert item.source == "news"
@@ -58,36 +58,37 @@ class TestNewsAPIResource:
         assert item.metadata["published_at"] == "2026-04-19T10:00:00Z"
 
     @patch("resources.news.requests.get")
-    def test_passes_api_key_and_page_size(self, mock_get):
+    def test_passes_api_key_and_page_size(self, mock_get, user):
         mock_get.return_value = _make_api_response([])
 
-        NewsAPIResource(num_stories=10).fetch()
+        NewsAPIResource(num_stories=10).fetch(user)
 
         _, kwargs = mock_get.call_args
         assert kwargs["params"]["apiKey"] == "test-key"
         assert kwargs["params"]["pageSize"] == 10
 
     @patch("resources.news.requests.get")
-    def test_idempotent_no_duplicates(self, mock_get):
+    def test_idempotent_no_duplicates(self, mock_get, user):
         mock_get.return_value = _make_api_response(SAMPLE_ARTICLES)
 
-        NewsAPIResource().fetch()
-        NewsAPIResource().fetch()
+        NewsAPIResource().fetch(user)
+        NewsAPIResource().fetch(user)
 
-        assert Item.objects.count() == 2
+        assert Item.objects.filter(user=user).count() == 2
 
     @patch("resources.news.requests.get")
-    def test_filters_articles_published_before_last_run(self, mock_get):
+    def test_filters_articles_published_before_last_run(self, mock_get, user):
         now = timezone.now()
         # Seed a prior item so "since last run" is non-null.
         Item.objects.create(
+            user=user,
             external_id="news-seed",
             source="news",
             title="Old",
             url="https://example.com/old",
         )
         # Force the seeded item's fetched_at to a known value.
-        Item.objects.filter(external_id="news-seed").update(
+        Item.objects.filter(user=user, external_id="news-seed").update(
             fetched_at=now - timedelta(hours=1)
         )
 
@@ -111,30 +112,30 @@ class TestNewsAPIResource:
         ]
         mock_get.return_value = _make_api_response(articles)
 
-        NewsAPIResource().fetch()
+        NewsAPIResource().fetch(user)
 
-        assert Item.objects.filter(url="https://example.com/news/new-story").exists()
+        assert Item.objects.filter(user=user, url="https://example.com/news/new-story").exists()
         assert not Item.objects.filter(
-            url="https://example.com/news/old-story"
+            user=user, url="https://example.com/news/old-story"
         ).exists()
 
     @patch("resources.news.requests.get")
-    def test_missing_api_key_skips_without_error(self, mock_get, monkeypatch):
+    def test_missing_api_key_skips_without_error(self, mock_get, user, monkeypatch):
         monkeypatch.delenv("NEWSAPI_KEY", raising=False)
 
-        NewsAPIResource().fetch()
+        NewsAPIResource().fetch(user)
 
         mock_get.assert_not_called()
-        assert Item.objects.filter(source="news").count() == 0
+        assert Item.objects.filter(user=user, source="news").count() == 0
 
     @patch("resources.news.requests.get")
-    def test_expires_at_set_approximately_24h(self, mock_get):
+    def test_expires_at_set_approximately_24h(self, mock_get, user):
         mock_get.return_value = _make_api_response(SAMPLE_ARTICLES[:1])
 
         before = timezone.now()
-        NewsAPIResource().fetch()
+        NewsAPIResource().fetch(user)
         after = timezone.now()
 
-        item = Item.objects.get(url="https://example.com/news/1")
+        item = Item.objects.get(user=user, url="https://example.com/news/1")
         assert item.expires_at >= before + timedelta(hours=23, minutes=59)
         assert item.expires_at <= after + timedelta(hours=24, minutes=1)

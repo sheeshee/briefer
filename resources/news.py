@@ -31,7 +31,7 @@ class NewsAPIResource(BaseResource):
         self.num_stories = num_stories
         self.country = country
 
-    def fetch(self) -> None:
+    def fetch(self, user) -> None:
         api_key = os.environ.get("NEWSAPI_KEY")
         if not api_key:
             logger.warning("NEWSAPI_KEY is not set; skipping news fetch")
@@ -40,7 +40,7 @@ class NewsAPIResource(BaseResource):
         now = timezone.now()
 
         last_item = (
-            Item.objects.filter(source=self.source_id)
+            Item.objects.filter(user=user, source=self.source_id)
             .order_by("-fetched_at")
             .first()
         )
@@ -70,12 +70,13 @@ class NewsAPIResource(BaseResource):
             url_hash = hashlib.sha1(url.encode()).hexdigest()[:16]
             external_id = f"news-{url_hash}"
 
-            if Item.objects.filter(external_id=external_id).exists():
+            if Item.objects.filter(user=user, external_id=external_id).exists():
                 logger.debug("Skipping already-fetched article: %s", external_id)
                 continue
 
             try:
                 Item.objects.create(
+                    user=user,
                     external_id=external_id,
                     source=self.source_id,
                     title=article.get("title", "") or "",

@@ -19,7 +19,7 @@ class HackerNewsResource(BaseResource):
     def __init__(self, num_stories: int = 10):
         self.num_stories = num_stories
 
-    def fetch(self) -> None:
+    def fetch(self, user) -> None:
         now = timezone.now()
         today = now.date()
 
@@ -39,6 +39,7 @@ class HackerNewsResource(BaseResource):
             external_id = f"hackernews-{story_id}"
 
             existing = Item.objects.filter(
+                user=user,
                 external_id=external_id,
                 fetched_at__date=today,
             ).exists()
@@ -48,6 +49,7 @@ class HackerNewsResource(BaseResource):
 
             try:
                 Item.objects.update_or_create(
+                    user=user,
                     external_id=external_id,
                     defaults={
                         "source": self.source_id,
