@@ -77,7 +77,7 @@ class FakeResource(BaseResource):
     def __init__(self, num_items: int = 10):
         self.num_items = num_items
 
-    def fetch(self) -> None:
+    def fetch(self, user) -> None:
         now = timezone.now()
         today = now.date()
 
@@ -86,10 +86,11 @@ class FakeResource(BaseResource):
         for i, item in enumerate(sample):
             external_id = f"fake-{today}-{i}"
 
-            if Item.objects.filter(external_id=external_id).exists():
+            if Item.objects.filter(user=user, external_id=external_id).exists():
                 continue
 
             Item.objects.create(
+                user=user,
                 external_id=external_id,
                 source=self.source_id,
                 title=item["title"],

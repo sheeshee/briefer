@@ -6,9 +6,9 @@ class BaseResource(ABC):
     source_id: str
 
     @abstractmethod
-    def fetch(self) -> None:
+    def fetch(self, user) -> None:
         """
-        Fetch items from the source and write them to the database.
-        Must be idempotent — use external_id to avoid duplicates.
+        Fetch items from the source and write them to the database for the given user.
+        Must be idempotent — use (user, external_id) to avoid duplicates.
         """
         ...

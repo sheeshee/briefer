@@ -9,8 +9,9 @@ from core.models import ActionError, Item
 
 
 @pytest.fixture
-def item(db):
+def item(user):
     return Item.objects.create(
+        user=user,
         source="test",
         external_id="todoist-test-1",
         title="My Test Item",
@@ -19,8 +20,9 @@ def item(db):
 
 
 @pytest.fixture
-def item_no_url(db):
+def item_no_url(user):
     return Item.objects.create(
+        user=user,
         source="test",
         external_id="todoist-test-2",
         title="No URL Item",

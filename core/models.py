@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -9,8 +10,11 @@ class Item(models.Model):
         ACTIONED = "actioned", "Actioned"
         DISMISSED = "dismissed", "Dismissed"
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="items"
+    )
     source = models.CharField(max_length=50)
-    external_id = models.CharField(max_length=255, unique=True)
+    external_id = models.CharField(max_length=255)
     title = models.TextField()
     summary = models.TextField(blank=True)
     url = models.URLField(blank=True)
@@ -26,6 +30,7 @@ class Item(models.Model):
 
     class Meta:
         ordering = ["-fetched_at"]
+        unique_together = ("user", "external_id")
 
     def __str__(self):
         return f"[{self.source}] {self.title}"

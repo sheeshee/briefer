@@ -1,4 +1,5 @@
 import django
+import pytest
 from django.conf import settings
 from dotenv import load_dotenv
 
@@ -15,8 +16,18 @@ def pytest_configure():
                 }
             },
             INSTALLED_APPS=[
+                "django.contrib.auth",
                 "django.contrib.contenttypes",
+                "django.contrib.sessions",
+                "django.contrib.messages",
                 "core",
+            ],
+            MIDDLEWARE=[
+                "django.contrib.sessions.middleware.SessionMiddleware",
+                "django.middleware.common.CommonMiddleware",
+                "django.middleware.csrf.CsrfViewMiddleware",
+                "django.contrib.auth.middleware.AuthenticationMiddleware",
+                "django.contrib.messages.middleware.MessageMiddleware",
             ],
             ROOT_URLCONF="briefer.urls",
             TEMPLATES=[
@@ -27,11 +38,22 @@ def pytest_configure():
                     "OPTIONS": {
                         "context_processors": [
                             "django.template.context_processors.request",
+                            "django.contrib.auth.context_processors.auth",
+                            "django.contrib.messages.context_processors.messages",
                         ],
                     },
                 },
             ],
             DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
             USE_TZ=True,
+            LOGIN_URL="/login/",
+            LOGIN_REDIRECT_URL="/",
+            LOGOUT_REDIRECT_URL="/login/",
         )
         django.setup()
+
+
+@pytest.fixture
+def user(db):
+    from django.contrib.auth.models import User
+    return User.objects.create_user(username="testuser", password="password")

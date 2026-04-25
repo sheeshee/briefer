@@ -164,6 +164,13 @@
     </style>
 </head>
 <body>
+    <div style="display:flex;justify-content:flex-end;align-items:center;width:100%;max-width:400px;gap:0.75rem;margin-bottom:0.5rem;font-size:0.8rem;color:#888;">
+        {{ request.user.username }}
+        <form method="post" action="{% url 'logout' %}" style="display:inline;margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="fetch-btn">log out</button>
+        </form>
+    </div>
     <h1>BRIEFER</h1>
     {% block counters %}{% endblock %}
     {% block content %}{% endblock %}

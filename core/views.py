@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
@@ -13,30 +14,36 @@ from core.models import ActionError, Item
 _ACTIONED_ACTIONS = [TodoistAction()]
 
 
+@login_required
 @require_GET
 def stack(request):
-    items = Item.objects.filter(state=Item.State.PENDING)
+    items = Item.objects.filter(user=request.user, state=Item.State.PENDING)
     return render(request, "core/stack.html", {
         "items": items,
         "pending_count": items.count(),
-        "actioned_count": Item.objects.filter(state=Item.State.ACTIONED).count(),
+        "actioned_count": Item.objects.filter(user=request.user, state=Item.State.ACTIONED).count(),
     })
 
 
+@login_required
 @require_GET
 def history(request):
-    items = Item.objects.order_by("-fetched_at")
+    items = Item.objects.filter(user=request.user).order_by("-fetched_at")
     paginator = Paginator(items, 50)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "core/history.html", {"page": page})
 
 
+@login_required
 @require_POST
 def reset(request):
-    Item.objects.exclude(state=Item.State.PENDING).update(state=Item.State.PENDING, actioned_at=None)
+    Item.objects.filter(user=request.user).exclude(state=Item.State.PENDING).update(
+        state=Item.State.PENDING, actioned_at=None
+    )
     return redirect("stack")
 
 
+@login_required
 @require_POST
 def fetch(request):
     include_fake = bool(request.POST.get("include_fake"))
@@ -44,9 +51,10 @@ def fetch(request):
     return redirect("stack")
 
 
+@login_required
 @require_POST
 def item_action(request, item_id):
-    item = get_object_or_404(Item, pk=item_id)
+    item = get_object_or_404(Item, pk=item_id, user=request.user)
 
     content_type = request.content_type or ""
     if "application/json" in content_type:
@@ -77,15 +85,17 @@ def item_action(request, item_id):
         return JsonResponse({"error": "Invalid action. Use 'seen', 'actioned', or 'dismissed'."}, status=400)
 
 
+@login_required
 @require_GET
 def action_errors(request):
-    errors = ActionError.objects.select_related("item").order_by("-occurred_at")
+    errors = ActionError.objects.filter(item__user=request.user).select_related("item").order_by("-occurred_at")
     paginator = Paginator(errors, 50)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "core/action_errors.html", {"page": page})
 
 
+@login_required
 @require_GET
 def action_error_detail(request, error_id):
-    error = get_object_or_404(ActionError, pk=error_id)
+    error = get_object_or_404(ActionError, pk=error_id, item__user=request.user)
     return render(request, "core/action_error_detail.html", {"error": error})
