@@ -13,7 +13,7 @@ permissions:
 jobs:
   app:
     name: Frontend + PocketBase (unit, typecheck, e2e)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-app-${{ github.ref }}
       cancel-in-progress: true
@@ -54,7 +54,7 @@ jobs:
 
   deploy-scripts:
     name: Deploy scripts (shellcheck, bats)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-deploy-scripts-${{ github.ref }}
       cancel-in-progress: true
@@ -80,7 +80,7 @@ jobs:
 
   django:
     name: Legacy Django app (until M6)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-django-${{ github.ref }}
       cancel-in-progress: true
@@ -98,7 +98,7 @@ jobs:
     needs: [app, deploy-scripts]
     # Same-repo PRs only: fork PRs get no secrets and must not publish releases.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -149,7 +149,7 @@ jobs:
     name: Deploy to staging + verify on the Pi
     needs: release
     if: vars.PI_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: write
