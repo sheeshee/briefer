@@ -1,0 +1,24 @@
+# systemd *user* unit, installed to /etc/systemd/user/ by bootstrap.sh and run
+# by the `briefer` user (lingering enabled). Instances: prod, staging, verify.
+#   systemctl --user restart briefer@staging
+[Unit]
+Description=Briefer PocketBase (%i)
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/briefer/common.env
+EnvironmentFile=/etc/briefer/%i.env
+WorkingDirectory=/opt/briefer/envs/%i/current
+ExecStart=/opt/briefer/envs/%i/current/pocketbase serve \
+  --http 127.0.0.1:${BRIEFER_PORT} \
+  --dir /var/lib/briefer/%i \
+  --hooksDir pb_hooks --migrationsDir pb_migrations --publicDir pb_public \
+  --hooksPool 2
+Restart=on-failure
+RestartSec=2
+MemoryMax=256M
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
