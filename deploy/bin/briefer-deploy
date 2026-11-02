@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# briefer-deploy <build-id> <sha256>
+# Download a release bundle, verify its checksum, install it, refresh staging's
+# data from prod, and switch staging to it. Staging only: prod changes only via
+# briefer-promote. On a failed smoke check staging returns to its previous build.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+ID="${1:?usage: briefer-deploy <build-id> <sha256>}"
+SHA="${2:?usage: briefer-deploy <build-id> <sha256>}"
+valid_build_id "$ID" || die "invalid build id: $ID"
+[[ "$SHA" =~ $SHA256_RE ]] || die "invalid sha256"
+
+with_lock
+
+BUILD_DIR="$BRIEFER_ROOT/builds/$ID"
+if [[ ! -f "$BUILD_DIR/BUILD_INFO.json" ]]; then
+  FILE="briefer-$ID-linux-$BRIEFER_ARCH.tar.gz"
+  URL="$BRIEFER_RELEASE_BASE_URL/build-$ID/$FILE"
+  TMP="$(mktemp -d)"
+  trap 'rm -rf "$TMP"' EXIT
+  log "downloading $URL"
+  curl -fsSL --retry 3 -o "$TMP/$FILE" "$URL" || die "download failed: $URL"
+  echo "$SHA  $TMP/$FILE" | sha256sum -c --status - || die "checksum mismatch for $FILE"
+  mkdir -p "$TMP/x"
+  tar -C "$TMP/x" -xzf "$TMP/$FILE"
+  [[ -x "$TMP/x/pocketbase" && -f "$TMP/x/BUILD_INFO.json" ]] || die "bundle is missing pocketbase or BUILD_INFO.json"
+  mkdir -p "$BRIEFER_ROOT/builds"
+  rm -rf "$BUILD_DIR"
+  mv "$TMP/x" "$BUILD_DIR"
+fi
+
+PREV="$(current_build staging)"
+log "staging: ${PREV:-none} -> $ID"
+
+svc stop briefer@staging || true
+log "refreshing staging data from prod"
+copy_data_live "$BRIEFER_DATA/prod" "$BRIEFER_DATA/staging"
+switch_env staging "$ID"
+
+if restart_env staging && briefer-smoke staging "$ID"; then
+  touch "$BUILD_DIR/.staged-ok"
+  prune
+  log "staging now runs $ID"
+  exit 0
+fi
+
+log "smoke checks failed for $ID on staging"
+if [[ -n "$PREV" && "$PREV" != "$ID" ]]; then
+  switch_env staging "$PREV"
+  restart_env staging && log "staging reverted to $PREV" || log "staging also unhealthy on $PREV"
+fi
+exit 1

@@ -1,0 +1,96 @@
+name: Run a command on the Pi
+description: >
+  Join the NetBird network with an ephemeral setup key, run one briefer-entry
+  command over SSH (the key is restricted to that forced command on the Pi),
+  and leave the network again.
+inputs:
+  command:
+    description: briefer-entry command, e.g. "deploy <id> <sha256>"
+    required: true
+  netbird-setup-key:
+    required: true
+  netbird-management-url:
+    description: Only for self-hosted NetBird
+    required: false
+    default: ""
+  netbird-version:
+    required: false
+    default: "0.81.2"
+  ssh-key:
+    required: true
+  known-hosts:
+    required: true
+  pi-host:
+    description: The Pi's NetBird IP or DNS name
+    required: true
+outputs:
+  output-file:
+    description: File holding the command's combined stdout/stderr
+    value: ${{ steps.run.outputs.output-file }}
+  exit-code:
+    value: ${{ steps.run.outputs.exit-code }}
+runs:
+  using: composite
+  steps:
+    - name: Install NetBird ${{ inputs.netbird-version }}
+      shell: bash
+      env:
+        V: ${{ inputs.netbird-version }}
+      run: |
+        set -euo pipefail
+        base="https://github.com/netbirdio/netbird/releases/download/v${V}"
+        file="netbird_${V}_linux_amd64.tar.gz"
+        cd "$RUNNER_TEMP"
+        curl -fsSLO "$base/$file"
+        curl -fsSLO "$base/netbird_${V}_checksums.txt"
+        grep " $file\$" "netbird_${V}_checksums.txt" | sha256sum -c -
+        tar -xzf "$file" netbird
+        sudo install -m 755 netbird /usr/local/bin/netbird
+        sudo netbird service install
+        sudo netbird service start
+
+    - name: Join NetBird
+      shell: bash
+      env:
+        SETUP_KEY: ${{ inputs.netbird-setup-key }}
+        MGMT_URL: ${{ inputs.netbird-management-url }}
+        PI_HOST: ${{ inputs.pi-host }}
+      run: |
+        set -euo pipefail
+        args=(up --setup-key "$SETUP_KEY" --hostname "gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}")
+        [[ -n "$MGMT_URL" ]] && args+=(--management-url "$MGMT_URL")
+        sudo netbird "${args[@]}"
+        for _ in $(seq 1 30); do
+          if timeout 3 bash -c "exec 3<>/dev/tcp/$PI_HOST/22" 2>/dev/null; then exit 0; fi
+          sleep 2
+        done
+        sudo netbird status --detail || true
+        echo "::error::Pi ($PI_HOST) not reachable over NetBird"
+        exit 1
+
+    - name: Run "${{ inputs.command }}"
+      id: run
+      shell: bash
+      env:
+        SSH_KEY: ${{ inputs.ssh-key }}
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        PI_HOST: ${{ inputs.pi-host }}
+        CMD: ${{ inputs.command }}
+      run: |
+        set -uo pipefail
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$SSH_KEY" > ~/.ssh/pi_deploy && chmod 600 ~/.ssh/pi_deploy
+        printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+        out="$RUNNER_TEMP/pi-output-$RANDOM.txt"
+        ssh -i ~/.ssh/pi_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=15 "briefer@$PI_HOST" "$CMD" 2>&1 | tee "$out"
+        code=${PIPESTATUS[0]}
+        echo "output-file=$out" >> "$GITHUB_OUTPUT"
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        rm -f ~/.ssh/pi_deploy
+        exit 0
+
+    - name: Leave NetBird
+      if: always()
+      shell: bash
+      run: sudo netbird down || true

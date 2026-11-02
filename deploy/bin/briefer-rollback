@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# briefer-rollback
+# Undo the most recent promote: restore the prod snapshot taken just before it
+# and switch prod back to the previous build. Data written to prod since that
+# promote is lost (it is kept in a fresh snapshot first). Repeatable.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+with_lock
+
+LOG="$BRIEFER_DATA/promotions.log"
+LAST="$(tail -n 1 "$LOG" 2>/dev/null || true)"
+[[ -n "$LAST" ]] || die "nothing to roll back"
+read -r _ts FROM TO SNAP <<<"$LAST"
+[[ "$FROM" != "none" ]] || die "nothing to roll back: $TO was the first build promoted to prod"
+[[ "$(current_build prod)" == "$TO" ]] || die "prod runs $(current_build prod), not $TO; refusing to guess"
+
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+log "rolling back prod: $TO -> $FROM"
+svc stop briefer@prod || true
+mkdir -p "$BRIEFER_DATA/snapshots"
+tar -C "$BRIEFER_DATA" -czf "$BRIEFER_DATA/snapshots/prod-$TS-$TO-before-rollback.tar.gz" prod
+if [[ "$SNAP" != "none" && -f "$SNAP" ]]; then
+  rm -rf "$BRIEFER_DATA/prod"
+  tar -C "$BRIEFER_DATA" -xzf "$SNAP"
+else
+  log "WARNING: snapshot $SNAP missing; keeping current prod data"
+fi
+[[ -d "$BRIEFER_ROOT/builds/$FROM" ]] || die "build $FROM is no longer on disk"
+switch_env prod "$FROM"
+sed -i '$ d' "$LOG"
+restart_env prod || die "prod failed to start on $FROM"
+briefer-smoke prod "$FROM"

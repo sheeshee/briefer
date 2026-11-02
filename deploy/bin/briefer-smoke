@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# briefer-smoke <env> [expected-build-id]
+# Deterministic, read-only health checks. Exit 0 only if every check passes.
+# Prints one "PASS|FAIL <check>" line per check on stdout.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+ENV="${1:?usage: briefer-smoke <env> [build-id]}"
+EXPECTED="${2:-$(current_build "$ENV")}"
+PORT="$(env_port "$ENV")"
+BASE="http://127.0.0.1:$PORT"
+FAILED=0
+
+check() {
+  local name="$1"; shift
+  if "$@"; then echo "PASS $name"; else echo "FAIL $name"; FAILED=1; fi
+}
+
+json_field() { python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$1"; }
+
+check_health() { curl -fsS -o /dev/null "$BASE/api/health"; }
+check_version() {
+  local body; body="$(curl -fsS "$BASE/api/briefer/version")" || return 1
+  [[ "$(json_field build <<<"$body")" == "$EXPECTED" ]] || { echo "  expected build $EXPECTED, got $(json_field build <<<"$body")"; return 1; }
+  [[ "$(json_field env <<<"$body")" == "$ENV" ]] || { echo "  expected env $ENV, got $(json_field env <<<"$body")"; return 1; }
+}
+check_frontend() { curl -fsS "$BASE/" | grep -q '<div id="root">'; }
+check_spa_fallback() { curl -fsS "$BASE/some/client/route" | grep -q '<div id="root">'; }
+check_rss() {
+  local pid rss_kb
+  pid="$(svc show -p MainPID --value "briefer@$ENV" 2>/dev/null || echo 0)"
+  [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 0 && -r "/proc/$pid/status" ]] || { echo "  no pid; skipped"; return 0; }
+  rss_kb="$(awk '/^VmRSS/ {print $2}' "/proc/$pid/status")"
+  echo "  rss $((rss_kb / 1024)) MB (limit $BRIEFER_SMOKE_MAX_RSS_MB MB)"
+  [[ $((rss_kb / 1024)) -le $BRIEFER_SMOKE_MAX_RSS_MB ]]
+}
+check_public_https() {
+  local url; url="$(env_var "$ENV" BRIEFER_PUBLIC_URL)"
+  [[ -n "$url" ]] || { echo "  BRIEFER_PUBLIC_URL not set; skipped"; return 0; }
+  local body; body="$(curl -fsS --max-time 10 "$url/api/briefer/version")" || return 1
+  [[ "$(json_field build <<<"$body")" == "$EXPECTED" ]]
+}
+
+check "health" check_health
+check "version ($EXPECTED/$ENV)" check_version
+check "frontend served" check_frontend
+check "spa fallback" check_spa_fallback
+check "memory" check_rss
+check "public https" check_public_https
+exit $FAILED

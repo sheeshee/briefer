@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# briefer-verify <build-id>
+# Start a throwaway "verify" instance (copy of staging's build and data), run
+# the deterministic smoke checks, then an advisory Claude Code pass. Prints a
+# Markdown report on stdout. Exit status reflects the smoke checks only.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+ID="${1:?usage: briefer-verify <build-id>}"
+valid_build_id "$ID" || die "invalid build id: $ID"
+with_lock
+[[ "$(current_build staging)" == "$ID" ]] || die "staging runs $(current_build staging), not $ID"
+
+cleanup() {
+  svc stop briefer@verify >/dev/null 2>&1 || true
+  rm -rf "$BRIEFER_DATA/verify"
+}
+trap cleanup EXIT
+
+copy_data_live "$BRIEFER_DATA/staging" "$BRIEFER_DATA/verify"
+switch_env verify "$ID"
+
+SMOKE_OUT=""
+SMOKE_STATUS=1
+if restart_env verify; then
+  SMOKE_OUT="$(briefer-smoke verify "$ID" 2>&1)" && SMOKE_STATUS=0
+else
+  SMOKE_OUT="verify instance failed to start"
+fi
+
+echo "### Pi verification for \`$ID\`"
+echo
+if [[ $SMOKE_STATUS -eq 0 ]]; then echo "**Smoke checks: PASS**"; else echo "**Smoke checks: FAIL**"; fi
+echo
+echo '```'
+echo "$SMOKE_OUT"
+echo '```'
+echo
+
+if [[ "${BRIEFER_VERIFY_CLAUDE:-1}" == "0" ]]; then
+  echo "**Claude verification: skipped** (BRIEFER_VERIFY_CLAUDE=0)"
+elif ! command -v claude >/dev/null 2>&1; then
+  echo "**Claude verification: skipped** (claude not installed)"
+elif [[ $SMOKE_STATUS -ne 0 ]]; then
+  echo "**Claude verification: skipped** (smoke checks failed)"
+else
+  PROMPT_FILE="$(dirname "$(readlink -f "$0")")/verify-prompt.md"
+  PROMPT="$(sed -e "s|{{BUILD}}|$ID|g" -e "s|{{BASE_URL}}|http://127.0.0.1:$(env_port verify)|g" "$PROMPT_FILE")"
+  WORK="$(mktemp -d)"
+  # Credentials for this call only (never exported to PocketBase).
+  CLAUDE_ENV=()
+  for var in CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY; do
+    val="$(env_var claude "$var")"
+    if [[ -n "$val" ]]; then CLAUDE_ENV+=("$var=$val"); fi
+  done
+  # Advisory only: a Claude failure (auth, rate limit, timeout) never fails the deploy.
+  if CLAUDE_OUT="$(cd "$WORK" && env "${CLAUDE_ENV[@]}" timeout 600 claude -p "$PROMPT" \
+        --allowedTools "Bash(curl:*)" --max-turns 30 --output-format text 2>&1)"; then
+    echo "**Claude verification (advisory):**"
+  else
+    echo "**Claude verification (advisory): did not complete**"
+  fi
+  echo
+  echo "$CLAUDE_OUT"
+  rm -rf "$WORK"
+fi
+exit $SMOKE_STATUS

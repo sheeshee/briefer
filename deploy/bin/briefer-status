@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# briefer-status — which build each environment runs, plus recent promotions.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+for env in prod staging; do
+  state="$(svc is-active "briefer@$env" 2>/dev/null || true)"
+  echo "$env: ${state:-unknown} build=$(current_build "$env") port=$(env_port "$env")"
+done
+echo "recent promotions:"
+tail -n 5 "$BRIEFER_DATA/promotions.log" 2>/dev/null | sed 's/^/  /' || true

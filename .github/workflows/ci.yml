@@ -1,0 +1,230 @@
+name: CI
+
+# PRs: test -> release bundle -> deploy to staging on the Pi -> verify report.
+# Merging is handled by promote.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Frontend + PocketBase (unit, typecheck, e2e)
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ci-app-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: pb/go.mod
+          cache-dependency-path: pb/go.sum
+      - run: npm ci
+        working-directory: web
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: web
+      - name: Frontend unit tests
+        run: npm test
+        working-directory: web
+      - name: Hook unit tests
+        run: node --test 'pb/tests/*.test.js'
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+        working-directory: web
+      - name: End-to-end tests (real PocketBase + built frontend)
+        run: scripts/e2e.sh
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
+  deploy-scripts:
+    name: Deploy scripts (shellcheck, bats)
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ci-deploy-scripts-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: pb/go.mod
+          cache-dependency-path: pb/go.sum
+      - name: shellcheck
+        run: shellcheck --severity=warning deploy/bin/briefer-* deploy/bootstrap.sh deploy/tests/fake-svc scripts/*.sh
+      - run: npm ci
+        working-directory: web
+      - name: bats
+        run: npx --yes bats@1.13.0 deploy/tests
+
+  django:
+    name: Legacy Django app (until M6)
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ci-django-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest
+
+  release:
+    name: Release bundle
+    needs: [app, deploy-scripts]
+    # Same-repo PRs only: fork PRs get no secrets and must not publish releases.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      build-id: ${{ steps.build.outputs.build-id }}
+      sha256: ${{ steps.build.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The PR head, not GitHub's synthetic merge commit: the build id is
+          # this commit's tree hash, which an up-to-date merge reproduces.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: pb/go.mod
+          cache-dependency-path: pb/go.sum
+      - run: npm ci
+        working-directory: web
+      - id: build
+        name: Build arm64 bundle and publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          id="$(git rev-parse 'HEAD^{tree}' | cut -c1-12)"
+          tag="build-$id"
+          file="briefer-$id-linux-arm64.tar.gz"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists (same tree built before); reusing it"
+            gh release download "$tag" --pattern "$file.sha256" --dir dist
+          else
+            tarball="$(scripts/build-release.sh --arch arm64 --out dist | tail -1)"
+            [[ "$(basename "$tarball")" == "$file" ]]
+            gh release create "$tag" "dist/$file" "dist/$file.sha256" \
+              --prerelease --target "$HEAD_SHA" --title "Build $id" \
+              --notes "Bundle for PR #$PR at $HEAD_SHA (tree $id). Promoted to prod when the PR merges."
+          fi
+          echo "build-id=$id" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(cut -d' ' -f1 "dist/$file.sha256")" >> "$GITHUB_OUTPUT"
+
+  staging:
+    name: Deploy to staging + verify on the Pi
+    needs: release
+    if: vars.PI_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      # One Pi operation at a time; never cancel one halfway through.
+      group: pi
+      cancel-in-progress: false
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: .github
+      - id: deploy
+        uses: ./.github/actions/pi-command
+        with:
+          command: deploy ${{ needs.release.outputs.build-id }} ${{ needs.release.outputs.sha256 }}
+          netbird-setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+          netbird-management-url: ${{ vars.NETBIRD_MANAGEMENT_URL }}
+          ssh-key: ${{ secrets.PI_SSH_KEY }}
+          known-hosts: ${{ secrets.PI_KNOWN_HOSTS }}
+          pi-host: ${{ secrets.PI_HOST }}
+      - id: verify
+        if: steps.deploy.outputs.exit-code == '0'
+        uses: ./.github/actions/pi-command
+        with:
+          command: verify ${{ needs.release.outputs.build-id }}
+          netbird-setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+          netbird-management-url: ${{ vars.NETBIRD_MANAGEMENT_URL }}
+          ssh-key: ${{ secrets.PI_SSH_KEY }}
+          known-hosts: ${{ secrets.PI_KNOWN_HOSTS }}
+          pi-host: ${{ secrets.PI_HOST }}
+      - name: Post report on the PR
+        if: always() && steps.deploy.outputs.output-file != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ID: ${{ needs.release.outputs.build-id }}
+          DEPLOY_CODE: ${{ steps.deploy.outputs.exit-code }}
+          DEPLOY_OUT: ${{ steps.deploy.outputs.output-file }}
+          VERIFY_CODE: ${{ steps.verify.outputs.exit-code }}
+          VERIFY_OUT: ${{ steps.verify.outputs.output-file }}
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          set -euo pipefail
+          {
+            if [[ "$DEPLOY_CODE" == "0" ]]; then
+              echo "## Staging deploy: \`$ID\` is live"
+              [[ -n "$STAGING_URL" ]] && echo && echo "Try it: $STAGING_URL"
+            else
+              echo "## Staging deploy of \`$ID\` FAILED (staging kept its previous build)"
+            fi
+            echo
+            echo "<details><summary>Deploy log</summary>"
+            echo
+            echo '```'
+            tail -n 80 "$DEPLOY_OUT"
+            echo '```'
+            echo "</details>"
+            if [[ -n "$VERIFY_OUT" && -f "$VERIFY_OUT" ]]; then
+              echo
+              grep -v '^\[[0-9:]*\] ' "$VERIFY_OUT" || true
+            fi
+            echo
+            echo "<sub>Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID</sub>"
+          } > report.md
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail if the deploy or smoke checks failed
+        if: always()
+        env:
+          DEPLOY_CODE: ${{ steps.deploy.outputs.exit-code }}
+          VERIFY_CODE: ${{ steps.verify.outputs.exit-code }}
+        run: |
+          [[ "$DEPLOY_CODE" == "0" ]] || { echo "::error::staging deploy failed"; exit 1; }
+          [[ "$VERIFY_CODE" == "0" ]] || { echo "::error::verify smoke checks failed"; exit 1; }

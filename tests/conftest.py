@@ -1,8 +1,16 @@
+import os
+
 import django
 from django.conf import settings
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# pytest-playwright's sync API runs an asyncio event loop on the test thread,
+# so Django refuses DB access during live-server test teardown
+# (SynchronousOnlyOperation). Safe here: tests are single-threaded and the
+# loop never runs Django code. Test-only; never set this in the app.
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
 
 def pytest_configure():
