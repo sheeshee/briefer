@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# briefer-promote <build-id>
+# Move a build that already passed staging to prod. Prod data is snapshotted
+# first; if the new build fails its smoke checks, the previous build and the
+# snapshot are restored automatically.
+source "$(dirname "$(readlink -f "$0")")/briefer-lib.sh"
+
+ID="${1:?usage: briefer-promote <build-id>}"
+valid_build_id "$ID" || die "invalid build id: $ID"
+
+with_lock
+
+BUILD_DIR="$BRIEFER_ROOT/builds/$ID"
+[[ -f "$BUILD_DIR/.staged-ok" ]] || die "build $ID has not been deployed to staging successfully; refusing to promote"
+
+PREV="$(current_build prod)"
+if [[ "$PREV" == "$ID" ]]; then
+  log "prod already runs $ID"
+  briefer-smoke prod "$ID"
+  exit $?
+fi
+
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+SNAP="none"
+log "prod: ${PREV:-none} -> $ID"
+svc stop briefer@prod || true
+if [[ -d "$BRIEFER_DATA/prod" ]]; then
+  mkdir -p "$BRIEFER_DATA/snapshots"
+  SNAP="$BRIEFER_DATA/snapshots/prod-$TS-${PREV:-none}.tar.gz"
+  tar -C "$BRIEFER_DATA" -czf "$SNAP" prod
+  log "snapshot: $SNAP"
+fi
+
+switch_env prod "$ID"
+if restart_env prod && briefer-smoke prod "$ID"; then
+  echo "$TS ${PREV:-none} $ID $SNAP" >> "$BRIEFER_DATA/promotions.log"
+  prune
+  log "prod now runs $ID"
+  exit 0
+fi
+
+log "smoke checks failed for $ID on prod; rolling back"
+svc stop briefer@prod || true
+if [[ "$SNAP" != "none" ]]; then
+  rm -rf "$BRIEFER_DATA/prod"
+  tar -C "$BRIEFER_DATA" -xzf "$SNAP"
+fi
+if [[ -n "$PREV" ]]; then
+  switch_env prod "$PREV"
+  if restart_env prod && briefer-smoke prod "$PREV" >/dev/null; then
+    echo "rolled back: prod is healthy on $PREV"
+  else
+    echo "rolled back to $PREV, but prod is still unhealthy - investigate"
+  fi
+else
+  rm -f "$BRIEFER_ROOT/envs/prod/current"
+  echo "rolled back: prod had no previous build and is now stopped"
+fi
+exit 1

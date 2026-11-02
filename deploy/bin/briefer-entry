@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# SSH forced command for the CI deploy key (see deploy/bootstrap.sh):
+#   command="/opt/briefer/bin/briefer-entry",restrict ssh-ed25519 AAAA...
+# Accepts exactly one of these commands, with strictly validated arguments:
+#   deploy <build-id> <sha256>    install + switch staging
+#   verify <build-id>             smoke + Claude report for staging's build
+#   promote <build-id>            staging-tested build -> prod
+#   rollback                      undo the last promote
+#   status
+set -uo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+
+usage() { echo "usage: deploy <id> <sha256> | verify <id> | promote <id> | rollback | status" >&2; exit 2; }
+
+CMD="${SSH_ORIGINAL_COMMAND:-$*}"
+# Only lowercase hex, letters and single spaces are ever valid.
+[[ "$CMD" =~ ^[a-z0-9\ ]+$ ]] || usage
+read -r -a ARGS <<<"$CMD"
+[[ ${#ARGS[@]} -gt 0 ]] || usage
+
+ID_RE='^[0-9a-f]{12}$'
+SHA_RE='^[0-9a-f]{64}$'
+
+case "${ARGS[0]}:${#ARGS[@]}" in
+  deploy:3)
+    [[ "${ARGS[1]}" =~ $ID_RE && "${ARGS[2]}" =~ $SHA_RE ]] || usage
+    exec "$BIN/briefer-deploy" "${ARGS[1]}" "${ARGS[2]}" ;;
+  verify:2)
+    [[ "${ARGS[1]}" =~ $ID_RE ]] || usage
+    exec "$BIN/briefer-verify" "${ARGS[1]}" ;;
+  promote:2)
+    [[ "${ARGS[1]}" =~ $ID_RE ]] || usage
+    exec "$BIN/briefer-promote" "${ARGS[1]}" ;;
+  rollback:1) exec "$BIN/briefer-rollback" ;;
+  status:1) exec "$BIN/briefer-status" ;;
+  *) usage ;;
+esac
