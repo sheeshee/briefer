@@ -1,0 +1,87 @@
+name: Promote to prod
+
+# Merging a PR into main is the sign-off: promote the exact bundle that staging
+# tested. The build id is the tree hash, so this only works if main's content
+# is byte-for-byte what the PR head had (require "up to date before merging").
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    if: vars.PI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pi
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: build
+        name: Find the staging-tested bundle for this content
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          id="$(git rev-parse 'HEAD^{tree}' | cut -c1-12)"
+          echo "build-id=$id" >> "$GITHUB_OUTPUT"
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty' || true)"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          if ! gh release view "build-$id" >/dev/null 2>&1; then
+            echo "::error::No bundle for tree $id. main's content differs from every tested PR head (was the branch out of date, or was this a direct push?). Prod was not touched."
+            exit 1
+          fi
+      - id: promote
+        uses: ./.github/actions/pi-command
+        with:
+          command: promote ${{ steps.build.outputs.build-id }}
+          netbird-setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+          netbird-management-url: ${{ vars.NETBIRD_MANAGEMENT_URL }}
+          ssh-key: ${{ secrets.PI_SSH_KEY }}
+          known-hosts: ${{ secrets.PI_KNOWN_HOSTS }}
+          pi-host: ${{ secrets.PI_HOST }}
+      - name: Mark the release as the production build
+        if: steps.promote.outputs.exit-code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ steps.build.outputs.build-id }}
+        run: gh release edit "build-$ID" --prerelease=false --latest
+      - name: Report on the merged PR
+        if: always() && steps.build.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.build.outputs.pr }}
+          ID: ${{ steps.build.outputs.build-id }}
+          CODE: ${{ steps.promote.outputs.exit-code }}
+          OUT: ${{ steps.promote.outputs.output-file }}
+          PROD_URL: ${{ vars.PROD_URL }}
+        run: |
+          set -euo pipefail
+          {
+            if [[ "$CODE" == "0" ]]; then
+              echo "## Promoted \`$ID\` to production"
+              [[ -n "$PROD_URL" ]] && echo && echo "$PROD_URL"
+            elif [[ -z "$CODE" ]]; then
+              echo "## Promotion of \`$ID\` did not run - prod unchanged"
+            else
+              echo "## Promotion of \`$ID\` FAILED - see log (prod was rolled back automatically)"
+            fi
+            if [[ -n "$OUT" && -f "$OUT" ]]; then
+              echo; echo '```'; tail -n 60 "$OUT"; echo '```'
+            fi
+            echo
+            echo "<sub>Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID</sub>"
+          } > report.md
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail if promotion failed
+        if: always()
+        env:
+          CODE: ${{ steps.promote.outputs.exit-code }}
+        run: '[[ "$CODE" == "0" ]] || { echo "::error::promotion failed"; exit 1; }'

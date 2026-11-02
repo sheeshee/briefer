@@ -1,0 +1,58 @@
+name: Pi operations
+
+# Manual escape hatch, from the Actions tab: status, roll back prod, or
+# (re-)promote a specific build that already passed staging.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: What to do
+        type: choice
+        options: [status, rollback, promote]
+        default: status
+      build-id:
+        description: 12-char build id (only for promote)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pi
+      cancel-in-progress: false
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+      - id: cmd
+        env:
+          CMD: ${{ inputs.command }}
+          ID: ${{ inputs.build-id }}
+        run: |
+          set -euo pipefail
+          if [[ "$CMD" == "promote" ]]; then
+            [[ "$ID" =~ ^[0-9a-f]{12}$ ]] || { echo "::error::promote needs a 12-char build id"; exit 1; }
+            echo "line=promote $ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "line=$CMD" >> "$GITHUB_OUTPUT"
+          fi
+      - id: pi
+        uses: ./.github/actions/pi-command
+        with:
+          command: ${{ steps.cmd.outputs.line }}
+          netbird-setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+          netbird-management-url: ${{ vars.NETBIRD_MANAGEMENT_URL }}
+          ssh-key: ${{ secrets.PI_SSH_KEY }}
+          known-hosts: ${{ secrets.PI_KNOWN_HOSTS }}
+          pi-host: ${{ secrets.PI_HOST }}
+      - if: always()
+        env:
+          CODE: ${{ steps.pi.outputs.exit-code }}
+          OUT: ${{ steps.pi.outputs.output-file }}
+        run: |
+          { echo '```'; cat "$OUT" 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          [[ "$CODE" == "0" ]]
