@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+  --bg: #1a1a2e;
+  --fg: #e0e0e0;
+  --muted: #8888aa;
+  --staging: #f5a623;
+  --dev: #53a8b6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.env-banner {
+  position: sticky;
+  top: 0;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: #111;
+}
+.env-staging { background: var(--staging); }
+.env-verify, .env-dev { background: var(--dev); }
+.placeholder { padding: 48px 16px; text-align: center; }
+.build { color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.8rem; }
