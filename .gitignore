@@ -215,3 +215,6 @@ pb/pb_data/
 pb/BUILD_INFO.json
 dist/
 .dev/
+
+# PocketBase hook helper modules (the Python template above ignores lib/)
+!pb/pb_hooks/lib/
