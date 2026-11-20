@@ -293,8 +293,11 @@
         if (actionedEl && action === "actioned") actionedEl.textContent = parseInt(actionedEl.textContent) + 1;
     }
 
+    // Rendered by Django so it carries the script prefix when served under a sub-path
+    const ITEM_ACTION_URL = "{% url 'item-action' 0 %}";
+
     function sendAction(itemId, action) {
-        return fetch(`/items/${itemId}/action/`, {
+        return fetch(ITEM_ACTION_URL.replace("/0/", `/${itemId}/`), {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
             body: JSON.stringify({ action }),

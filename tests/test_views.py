@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from django.test import Client
+from django.test.utils import override_script_prefix
 
 from core.models import ActionError, Item
 
@@ -42,6 +43,14 @@ class TestStackView:
         )
         response = client.get("/")
         assert response.context["actioned_count"] == 1
+
+    def test_action_url_respects_script_prefix(self, client, pending_item):
+        # Served behind a reverse proxy at /briefer/, the swipe JS must post there too
+        with override_script_prefix("/briefer/"):
+            response = client.get("/")
+        content = response.content.decode()
+        assert "/briefer/items/0/action/" in content
+        assert "fetch(`/items/" not in content
 
     def test_counts_rendered_in_html(self, client, pending_item):
         response = client.get("/")
