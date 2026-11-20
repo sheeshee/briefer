@@ -60,3 +60,9 @@ After completing any task that modifies files, stage and commit the changes usin
 ## Data Model
 
 `core.Item` has states: `pending` → `seen` / `actioned` / `dismissed`. Items are ordered by `-fetched_at`. Optional `expires_at` for time-limited items.
+
+## Deployment
+
+Served on Sam's Pi at `/briefer/` behind Caddy (basic auth), run by gunicorn as the user service `briefer.service` (`systemctl --user`). Managed by the `briefer` role in `~/infra`; redeploy with `cd ~/infra && just deploy briefer`, which resets this checkout to `origin/main`, so **push before deploying**. Production settings live in the gitignored `.env`.
+
+Because of the `/briefer` prefix (gunicorn passes `SCRIPT_NAME`), never hardcode absolute paths in templates or JS: use `{% url %}` / `reverse()`.
