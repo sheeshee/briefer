@@ -20,7 +20,7 @@ class TodoistAction(BaseAction):
             return
 
         content = f"[{item.title}]({item.url})" if item.url else item.title
-        payload = json.dumps({"content": content, "labels": ["briefer"]}).encode()
+        payload = json.dumps({"content": content, "labels": ["briefer", "reading"]}).encode()
         req = urllib.request.Request(
             "https://api.todoist.com/api/v1/tasks",
             data=payload,
