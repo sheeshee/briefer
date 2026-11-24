@@ -9,5 +9,7 @@ urlpatterns = [
     path("errors/<int:error_id>/", views.action_error_detail, name="action-error-detail"),
     path("fetch/", views.fetch, name="fetch"),
     path("reset/", views.reset, name="reset"),
+    path("raindrop/connect/", views.raindrop_connect, name="raindrop-connect"),
+    path("raindrop/callback/", views.raindrop_callback, name="raindrop-callback"),
     path("items/<int:item_id>/action/", views.item_action, name="item-action"),
 ]

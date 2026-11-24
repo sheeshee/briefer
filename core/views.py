@@ -1,5 +1,7 @@
 import json
 
+from django.conf import settings
+
 from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
@@ -7,10 +9,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from actions.todoist import TodoistAction
+from actions import raindrop
+from actions.raindrop import RaindropAction
 from core.models import ActionError, Item
 
-_ACTIONED_ACTIONS = [TodoistAction()]
+_ACTIONED_ACTIONS = [RaindropAction()]
 
 
 @require_GET
@@ -20,6 +23,7 @@ def stack(request):
         "items": items,
         "pending_count": items.count(),
         "actioned_count": Item.objects.filter(state=Item.State.ACTIONED).count(),
+        "raindrop_needs_connect": bool(settings.RAINDROP_CLIENT_ID) and not raindrop.is_connected(),
     })
 
 
@@ -89,3 +93,23 @@ def action_errors(request):
 def action_error_detail(request, error_id):
     error = get_object_or_404(ActionError, pk=error_id)
     return render(request, "core/action_error_detail.html", {"error": error})
+
+
+@require_GET
+def raindrop_connect(request):
+    return redirect(raindrop.authorize_url())
+
+
+@require_GET
+def raindrop_callback(request):
+    error = request.GET.get("error")
+    code = request.GET.get("code")
+    if error or not code:
+        return HttpResponse(f"Raindrop authorization failed: {error or 'no code'}",
+                            status=400, content_type="text/plain")
+    try:
+        raindrop.exchange_code(code)
+    except Exception as e:
+        return HttpResponse(f"Raindrop authorization failed: {e}",
+                            status=400, content_type="text/plain")
+    return redirect("stack")

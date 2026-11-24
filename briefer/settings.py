@@ -57,7 +57,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-TODOIST_API_TOKEN = os.environ.get("TODOIST_API_TOKEN", "")
+# Raindrop.io: swipe right saves the item as a bookmark. Either set
+# RAINDROP_TEST_TOKEN, or the OAuth app's client id/secret/redirect URI and
+# visit /raindrop/connect/ once.
+RAINDROP_CLIENT_ID = os.environ.get("RAINDROP_CLIENT_ID", "")
+RAINDROP_CLIENT_SECRET = os.environ.get("RAINDROP_CLIENT_SECRET", "")
+RAINDROP_REDIRECT_URI = os.environ.get("RAINDROP_REDIRECT_URI", "")
+RAINDROP_TEST_TOKEN = os.environ.get("RAINDROP_TEST_TOKEN", "")
+RAINDROP_COLLECTION_ID = os.environ.get("RAINDROP_COLLECTION_ID", "")  # empty = Unsorted
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

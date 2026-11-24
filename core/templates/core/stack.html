@@ -6,6 +6,9 @@
         <div class="counter"><span id="pending-count">{{ pending_count }}</span> remaining</div>
         <div class="counter"><span id="actioned-count">{{ actioned_count }}</span> actioned</div>
         <div class="spacer"></div>
+        {% if raindrop_needs_connect %}
+        <a class="fetch-btn" href="{% url 'raindrop-connect' %}" style="text-decoration:none">connect raindrop</a>
+        {% endif %}
         <a class="fetch-btn" href="{% url 'history' %}" style="text-decoration:none">history</a>
     </div>
     <div class="counters-row">

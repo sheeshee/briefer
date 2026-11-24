@@ -135,7 +135,7 @@ class TestHistoryView:
 class TestActionErrorViews:
     def _make_error(self, db):
         item = Item.objects.create(source="s", external_id="ae1", title="Broken Item")
-        return ActionError.objects.create(item=item, action_id="todoist", error="HTTP 401")
+        return ActionError.objects.create(item=item, action_id="raindrop", error="HTTP 401")
 
     def test_list_returns_200(self, client, db):
         response = client.get("/errors/")
@@ -145,7 +145,7 @@ class TestActionErrorViews:
         err = self._make_error(db)
         response = client.get("/errors/")
         assert b"Broken Item" in response.content
-        assert b"todoist" in response.content
+        assert b"raindrop" in response.content
 
     def test_detail_returns_200(self, client, db):
         err = self._make_error(db)
@@ -170,10 +170,10 @@ class TestActionErrorViews:
 
 
 @pytest.mark.django_db
-class TestActionedTriggersTodoist:
-    def test_actioned_calls_todoist_execute(self, client, db):
+class TestActionedTriggersRaindrop:
+    def test_actioned_calls_raindrop_execute(self, client, db):
         item = Item.objects.create(source="s", external_id="td1", title="Trigger Test")
-        with patch("core.views.TodoistAction.execute") as mock_exec:
+        with patch("core.views.RaindropAction.execute") as mock_exec:
             client.post(
                 f"/items/{item.id}/action/",
                 data=json.dumps({"action": "actioned"}),

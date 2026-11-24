@@ -42,3 +42,15 @@ class ActionError(models.Model):
 
     def __str__(self):
         return f"[{self.action_id}] {self.error[:60]}"
+
+
+class RaindropToken(models.Model):
+    """The single Raindrop.io OAuth token (always pk=1)."""
+
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    expires_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Raindrop token (expires {self.expires_at:%Y-%m-%d})"

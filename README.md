@@ -39,8 +39,18 @@ DJANGO_ALLOWED_HOSTS=localhost,yourdomain.com
 # Required for NewsAPI resource
 NEWSAPI_KEY=your-newsapi-key
 
-# Required for Todoist action (swipe right creates a task)
-TODOIST_API_TOKEN=your-todoist-api-token
+# Raindrop.io action (swipe right saves a bookmark, tagged "briefer").
+# Register an app at https://app.raindrop.io/settings/integrations, set its
+# redirect URI to <briefer URL>/raindrop/callback/, then click
+# "connect raindrop" in the UI once. Tokens are stored in the database and
+# refreshed automatically.
+RAINDROP_CLIENT_ID=your-client-id
+RAINDROP_CLIENT_SECRET=your-client-secret
+RAINDROP_REDIRECT_URI=https://yourdomain.com/briefer/raindrop/callback/
+# Optional: the app's personal "Test token" instead of OAuth
+# RAINDROP_TEST_TOKEN=
+# Optional: collection id to save into (default: Unsorted)
+# RAINDROP_COLLECTION_ID=
 ```
 
 ## Fetching items
