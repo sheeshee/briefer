@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.conf import settings
 
@@ -11,7 +12,10 @@ from django.views.decorators.http import require_GET, require_POST
 
 from actions import raindrop
 from actions.raindrop import RaindropAction
+from core.feeds import RaindropFeed
 from core.models import ActionError, Item
+
+logger = logging.getLogger(__name__)
 
 _ACTIONED_ACTIONS = [RaindropAction()]
 
@@ -113,3 +117,21 @@ def raindrop_callback(request):
         return HttpResponse(f"Raindrop authorization failed: {e}",
                             status=400, content_type="text/plain")
     return redirect("stack")
+
+
+@require_GET
+def raindrop_feed(request):
+    collection_id = settings.RAINDROP_FEED_COLLECTION_ID
+    try:
+        raindrops = raindrop.list_raindrops(collection_id)
+    except Exception as e:
+        # A dead token needs Sam (ERROR alerts); an outage fixes itself.
+        level = logging.ERROR if isinstance(e, raindrop.RaindropAuthError) else logging.WARNING
+        logger.log(level, "Raindrop feed failed for collection %s: %s", collection_id, e)
+        response = HttpResponse(f"Raindrop feed unavailable: {e}", status=502,
+                                content_type="text/plain")
+        # Django's request logger would add an ERROR "Bad Gateway" line for any
+        # 5xx, so an outage would alert anyway. The line above is the log.
+        response._has_been_logged = True
+        return response
+    return RaindropFeed(raindrops)(request)

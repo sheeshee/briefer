@@ -11,5 +11,6 @@ urlpatterns = [
     path("reset/", views.reset, name="reset"),
     path("raindrop/connect/", views.raindrop_connect, name="raindrop-connect"),
     path("raindrop/callback/", views.raindrop_callback, name="raindrop-callback"),
+    path("raindrop/feed.xml", views.raindrop_feed, name="raindrop-feed"),
     path("items/<int:item_id>/action/", views.item_action, name="item-action"),
 ]

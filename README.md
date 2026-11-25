@@ -51,6 +51,10 @@ RAINDROP_REDIRECT_URI=https://yourdomain.com/briefer/raindrop/callback/
 # RAINDROP_TEST_TOKEN=
 # Optional: collection id to save into (default: Unsorted)
 # RAINDROP_COLLECTION_ID=
+# Optional: collection served as RSS at <briefer URL>/raindrop/feed.xml
+# (default: -1, Unsorted). Raindrop only has RSS for public collections, so
+# this is how a private one gets to a feed reader such as Kindly.
+# RAINDROP_FEED_COLLECTION_ID=
 ```
 
 ## Fetching items

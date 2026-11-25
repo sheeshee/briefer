@@ -65,6 +65,8 @@ RAINDROP_CLIENT_SECRET = os.environ.get("RAINDROP_CLIENT_SECRET", "")
 RAINDROP_REDIRECT_URI = os.environ.get("RAINDROP_REDIRECT_URI", "")
 RAINDROP_TEST_TOKEN = os.environ.get("RAINDROP_TEST_TOKEN", "")
 RAINDROP_COLLECTION_ID = os.environ.get("RAINDROP_COLLECTION_ID", "")  # empty = Unsorted
+# /raindrop/feed.xml serves this collection as RSS (for Kindly). -1 = Unsorted.
+RAINDROP_FEED_COLLECTION_ID = os.environ.get("RAINDROP_FEED_COLLECTION_ID", "-1")
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 AUTHORIZE_URL = "https://raindrop.io/oauth/authorize"
 TOKEN_URL = "https://raindrop.io/oauth/access_token"
 CREATE_URL = "https://api.raindrop.io/rest/v1/raindrop"
+LIST_URL = "https://api.raindrop.io/rest/v1/raindrops/{collection_id}"
 REFRESH_MARGIN = timedelta(days=1)
 TIMEOUT = 10
 
@@ -31,6 +32,10 @@ class RaindropError(Exception):
 
 class MissingURL(RaindropError):
     """Not a fault: some items just have nothing to bookmark."""
+
+
+class RaindropAuthError(RaindropError):
+    """Raindrop isn't connected or rejected the token: needs Sam."""
 
 
 def is_configured():
@@ -82,7 +87,7 @@ def access_token():
         return settings.RAINDROP_TEST_TOKEN
     token = RaindropToken.objects.filter(pk=1).first()
     if token is None:
-        raise RaindropError("Raindrop not connected: open /raindrop/connect/")
+        raise RaindropAuthError("Raindrop not connected: open /raindrop/connect/")
     if token.expires_at - timezone.now() < REFRESH_MARGIN:
         token = _token_request({
             "client_id": settings.RAINDROP_CLIENT_ID,
@@ -91,6 +96,21 @@ def access_token():
             "refresh_token": token.refresh_token,
         })
     return token.access_token
+
+
+def list_raindrops(collection_id, perpage=50):
+    """The newest bookmarks in a collection (-1 = Unsorted), at most 50 (API limit)."""
+    resp = requests.get(
+        LIST_URL.format(collection_id=collection_id),
+        params={"sort": "-created", "perpage": perpage},
+        headers={"Authorization": f"Bearer {access_token()}"},
+        timeout=TIMEOUT,
+    )
+    if resp.status_code == 401:
+        raise RaindropAuthError("Raindrop rejected the token: open /raindrop/connect/")
+    if resp.status_code >= 400:
+        raise RaindropError(f"HTTP {resp.status_code}")
+    return resp.json().get("items", [])
 
 
 class RaindropAction(BaseAction):
