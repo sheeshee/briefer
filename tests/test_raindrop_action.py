@@ -191,3 +191,29 @@ class TestRaindropOAuthViews:
     def test_stack_hides_connect_link_when_connected(self, client, oauth_settings, token):
         response = client.get("/")
         assert b"connect raindrop" not in response.content
+
+
+@pytest.mark.django_db
+class TestRaindropLogLevels:
+    """ERROR-level logs reach the OpenObserve app_errors alert (ntfy); WARNING doesn't."""
+
+    def test_token_refresh_failure_logs_error(self, item, oauth_settings, token, caplog):
+        token.expires_at = timezone.now() + timedelta(hours=1)
+        token.save()
+        with patch("actions.raindrop.requests.post", return_value=_response(status=400)):
+            _action().execute(item)
+        rec = next(r for r in caplog.records if r.name == "actions.raindrop")
+        assert rec.levelname == "ERROR"
+        assert "token request failed" in rec.getMessage()
+        assert "token request failed" in ActionError.objects.get().error
+
+    def test_bookmark_http_failure_logs_error(self, item, oauth_settings, token, caplog):
+        with patch("actions.raindrop.requests.post", return_value=_response(status=401)):
+            _action().execute(item)
+        rec = next(r for r in caplog.records if r.name == "actions.raindrop")
+        assert rec.levelname == "ERROR"
+
+    def test_missing_url_logs_warning(self, item_no_url, oauth_settings, token, caplog):
+        _action().execute(item_no_url)
+        rec = next(r for r in caplog.records if r.name == "actions.raindrop")
+        assert rec.levelname == "WARNING"

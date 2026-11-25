@@ -29,6 +29,10 @@ class RaindropError(Exception):
     pass
 
 
+class MissingURL(RaindropError):
+    """Not a fault: some items just have nothing to bookmark."""
+
+
 def is_configured():
     return bool(settings.RAINDROP_TEST_TOKEN or settings.RAINDROP_CLIENT_ID)
 
@@ -97,7 +101,7 @@ class RaindropAction(BaseAction):
             return
         try:
             if not item.url:
-                raise RaindropError("item has no URL to bookmark")
+                raise MissingURL("item has no URL to bookmark")
             body = {
                 "link": item.url,
                 "title": item.title,
@@ -115,5 +119,8 @@ class RaindropAction(BaseAction):
             if resp.status_code >= 400:
                 raise RaindropError(f"HTTP {resp.status_code}")
         except Exception as e:
-            logger.warning("Raindrop action failed for item %s: %s", item.pk, e)
+            # ERROR reaches the OpenObserve app_errors alert (ntfy); a lost
+            # bookmark or a dead token needs Sam's attention.
+            level = logging.WARNING if isinstance(e, MissingURL) else logging.ERROR
+            logger.log(level, "Raindrop action failed for item %s: %s", item.pk, e)
             ActionError.objects.create(item=item, action_id=self.action_id, error=str(e))
