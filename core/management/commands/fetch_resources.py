@@ -17,6 +17,7 @@ BASE_RESOURCES = [
     BBCFeedResource("bbc", "https://feeds.bbci.co.uk/news/rss.xml"),
     BBCFeedResource("bbc-wales", "https://feeds.bbci.co.uk/news/wales/rss.xml"),
     BBCFeedResource("bbc-tech", "https://feeds.bbci.co.uk/news/technology/rss.xml"),
+    BBCFeedResource("bbc-world", "https://feeds.bbci.co.uk/news/world/rss.xml"),
     # Last, so it is the newest item and sits on top of the stack.
     WeatherResource(),
 ]
