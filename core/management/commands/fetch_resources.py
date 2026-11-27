@@ -6,12 +6,15 @@ from django.core.management.base import BaseCommand
 from resources.fake import FakeResource
 from resources.hackernews import HackerNewsResource
 from resources.news import NewsAPIResource
+from resources.weather import WeatherResource
 
 logger = logging.getLogger(__name__)
 
 BASE_RESOURCES = [
     HackerNewsResource(),
     NewsAPIResource(),
+    # Last, so it is the newest item and sits on top of the stack.
+    WeatherResource(),
 ]
 
 

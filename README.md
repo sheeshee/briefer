@@ -4,7 +4,7 @@ A self-hosted personal daily briefing app. Fetches items from external sources a
 
 ## What it does
 
-Each day you fetch new items from configured sources (Hacker News, NewsAPI, etc.). Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
+Each day you fetch new items from configured sources (Hacker News, NewsAPI, etc.) plus a single card with the day's weather forecast. Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
 
 ## Stack
 
@@ -38,6 +38,12 @@ DJANGO_ALLOWED_HOSTS=localhost,yourdomain.com
 
 # Required for NewsAPI resource
 NEWSAPI_KEY=your-newsapi-key
+
+# Optional: daily weather card (Open-Meteo, no key). Defaults to Cardiff.
+BRIEFER_WEATHER_LATITUDE=51.49
+BRIEFER_WEATHER_LONGITUDE=-3.16
+BRIEFER_WEATHER_PLACE=Cardiff
+BRIEFER_WEATHER_URL=https://www.bbc.co.uk/weather/2653822
 
 # Raindrop.io action (swipe right saves a bookmark, tagged "briefer").
 # Register an app at https://app.raindrop.io/settings/integrations, set its

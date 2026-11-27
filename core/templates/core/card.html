@@ -1,6 +1,9 @@
 <div class="card" data-item-id="{{ item.id }}">
     <span class="source-badge">{{ item.source }}</span>
     <div class="card-title">{{ item.title }}</div>
+    {% if item.source == "weather" and item.summary %}
+        <div class="card-summary">{{ item.summary }}</div>
+    {% endif %}
     {% if item.url %}
         <a class="card-url" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url|truncatechars:60 }}</a>
     {% endif %}
