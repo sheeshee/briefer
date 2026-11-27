@@ -4,7 +4,7 @@ A self-hosted personal daily briefing app. Fetches items from external sources a
 
 ## What it does
 
-Each day you fetch new items from configured sources (Hacker News, NewsAPI, etc.) plus a single card with the day's weather forecast. Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
+Each day you fetch new items from configured sources (Hacker News, NewsAPI, BBC News RSS feeds: Top stories, Wales, Technology) plus a single card with the day's weather forecast. Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
 
 ## Stack
 
