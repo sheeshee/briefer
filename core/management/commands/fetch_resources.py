@@ -4,6 +4,7 @@ import sys
 from django.core.management.base import BaseCommand
 
 from resources.bbc import BBCFeedResource
+from resources.claude_usage import ClaudeUsageResource
 from resources.fake import FakeResource
 from resources.hackernews import HackerNewsResource
 from resources.news import NewsAPIResource
@@ -18,6 +19,7 @@ BASE_RESOURCES = [
     BBCFeedResource("bbc-wales", "https://feeds.bbci.co.uk/news/wales/rss.xml"),
     BBCFeedResource("bbc-tech", "https://feeds.bbci.co.uk/news/technology/rss.xml"),
     BBCFeedResource("bbc-world", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+    ClaudeUsageResource(),
     # Last, so it is the newest item and sits on top of the stack.
     WeatherResource(),
 ]

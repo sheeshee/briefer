@@ -4,7 +4,7 @@ A self-hosted personal daily briefing app. Fetches items from external sources a
 
 ## What it does
 
-Each day you fetch new items from configured sources (Hacker News, NewsAPI, BBC News RSS feeds: Top stories, Wales, Technology, World) plus a single card with the day's weather forecast. Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
+Each day you fetch new items from configured sources (Hacker News, NewsAPI, BBC News RSS feeds: Top stories, Wales, Technology, World) plus a single card with the day's weather forecast and one with how much of the Claude subscription's weekly limit is left (with a chart of this week; swipe right adds a "check Claude usage" task to Todoist). Items appear as a card stack you swipe through — right to action, left to dismiss. Long-press a card for more options.
 
 ## Stack
 
@@ -44,6 +44,13 @@ BRIEFER_WEATHER_LATITUDE=51.49
 BRIEFER_WEATHER_LONGITUDE=-3.16
 BRIEFER_WEATHER_PLACE=Cardiff
 BRIEFER_WEATHER_URL=https://www.bbc.co.uk/weather/2653822
+
+# Optional: daily Claude usage card. Reads the Parquet snapshots written by the
+# Pi's datalake-claude.timer; no card if the directory doesn't exist.
+BRIEFER_CLAUDE_USAGE_DIR=/var/lib/claude-usage/limits
+BRIEFER_CLAUDE_DASHBOARD_URL=https://pi.buttshee.net/dash/dashboards/<id>
+# Swipe right on the Claude usage card creates a Todoist task due today.
+TODOIST_API_TOKEN=your-todoist-token
 
 # Raindrop.io action (swipe right saves a bookmark, tagged "briefer").
 # Register an app at https://app.raindrop.io/settings/integrations, set its

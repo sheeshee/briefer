@@ -1,11 +1,15 @@
+{% load claude_usage %}
 <div class="card" data-item-id="{{ item.id }}">
     <span class="source-badge">{{ item.source }}</span>
     <div class="card-title">{{ item.title }}</div>
-    {% if item.source == "weather" and item.summary %}
+    {% if item.source == "weather" or item.source == "claude-usage" %}{% if item.summary %}
         <div class="card-summary">{{ item.summary }}</div>
+    {% endif %}{% endif %}
+    {% if item.source == "claude-usage" %}
+        {% claude_usage_chart item.metadata %}
     {% endif %}
     {% if item.url %}
-        <a class="card-url" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url|truncatechars:60 }}</a>
+        <a class="card-url" href="{{ item.url }}" target="_blank" rel="noopener">{% if item.source == "claude-usage" %}Shaper dashboard{% else %}{{ item.url|truncatechars:60 }}{% endif %}</a>
     {% endif %}
     <div class="swipe-hint">&larr; seen &nbsp;&bull;&nbsp; action &rarr;</div>
 </div>
