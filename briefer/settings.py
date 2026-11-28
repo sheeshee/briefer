@@ -68,6 +68,9 @@ RAINDROP_COLLECTION_ID = os.environ.get("RAINDROP_COLLECTION_ID", "")  # empty =
 # /raindrop/feed.xml serves this collection as RSS (for Kindly). -1 = Unsorted.
 RAINDROP_FEED_COLLECTION_ID = os.environ.get("RAINDROP_FEED_COLLECTION_ID", "-1")
 
+# Todoist: swipe right on the Claude usage card adds a task due today.
+TODOIST_API_TOKEN = os.environ.get("TODOIST_API_TOKEN", "")
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = False

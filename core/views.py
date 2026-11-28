@@ -12,12 +12,21 @@ from django.views.decorators.http import require_GET, require_POST
 
 from actions import raindrop
 from actions.raindrop import RaindropAction
+from actions.todoist import TodoistAction
 from core.feeds import RaindropFeed
 from core.models import ActionError, Item
 
 logger = logging.getLogger(__name__)
 
-_ACTIONED_ACTIONS = [RaindropAction()]
+# Swipe right bookmarks the item in Raindrop, except for sources listed here.
+_SOURCE_ACTIONS = {
+    "claude-usage": [TodoistAction("check Claude usage")],
+}
+_DEFAULT_ACTIONS = [RaindropAction()]
+
+
+def actions_for(item):
+    return _SOURCE_ACTIONS.get(item.source, _DEFAULT_ACTIONS)
 
 
 @require_GET
@@ -74,7 +83,7 @@ def item_action(request, item_id):
         item.state = Item.State.ACTIONED
         item.actioned_at = timezone.now()
         item.save(update_fields=["state", "actioned_at"])
-        for act in _ACTIONED_ACTIONS:
+        for act in actions_for(item):
             act.execute(item)
         return HttpResponse(status=204)
     elif action == "dismissed":
